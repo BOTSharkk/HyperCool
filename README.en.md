@@ -1,6 +1,6 @@
 # HyperCool - Heat & Battery Fix
 
-**English** | [简体中文](README.en.md)
+**English** | [简体中文](README.md)
 
 ![HyperCool](banner.jpg)
 
@@ -21,71 +21,71 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 <table align="center">
   <tr>
     <td align="center" valign="top">
-      <img src="docs/screenshots/home.png" alt="Home" width="200" /><br />
+      <img src="docs/screenshots/zh/home.jpg" alt="Home" width="200" /><br />
       <b>Home</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/heat-control.png" alt="Heat control" width="200" /><br />
+      <img src="docs/screenshots/zh/heat-control.jpg" alt="Heat control" width="200" /><br />
       <b>Heat control</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/battery-drain.png" alt="Battery drain (kernel)" width="200" /><br />
+      <img src="docs/screenshots/zh/battery-drain.jpg" alt="Battery drain (kernel)" width="200" /><br />
       <b>Battery drain (kernel)</b>
     </td>
   </tr>
   <tr>
     <td align="center" valign="top">
-      <img src="docs/screenshots/protected-apps.png" alt="Protected and blocked apps" width="200" /><br />
+      <img src="docs/screenshots/zh/protected-apps.jpg" alt="Protected and blocked apps" width="200" /><br />
       <b>Protected apps</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/battery-calibration.png" alt="Battery calibration" width="200" /><br />
+      <img src="docs/screenshots/zh/battery-calibration.jpg" alt="Battery calibration" width="200" /><br />
       <b>Battery calibration</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/long-battery.png" alt="Long battery" width="200" /><br />
+      <img src="docs/screenshots/zh/long-battery.jpg" alt="Long battery" width="200" /><br />
       <b>Long battery</b>
     </td>
   </tr>
   <tr>
     <td align="center" valign="top">
-      <img src="docs/screenshots/advanced.png" alt="Advanced and experimental" width="200" /><br />
+      <img src="docs/screenshots/zh/advanced.jpg" alt="Advanced and experimental" width="200" /><br />
       <b>Advanced</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/extra-kernel-tuning.png" alt="Extra kernel tuning" width="200" /><br />
+      <img src="docs/screenshots/zh/extra-kernel-tuning.jpg" alt="Extra kernel tuning" width="200" /><br />
       <b>Extra kernel tuning</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/ram-management.png" alt="RAM management" width="200" /><br />
+      <img src="docs/screenshots/zh/ram-management.jpg" alt="RAM management" width="200" /><br />
       <b>RAM management</b>
     </td>
   </tr>
   <tr>
     <td align="center" valign="top">
-      <img src="docs/screenshots/google-services.png" alt="Google services and telemetry" width="200" /><br />
+      <img src="docs/screenshots/zh/google-services.jpg" alt="Google services and telemetry" width="200" /><br />
       <b>Google services</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/storage.png" alt="Storage" width="200" /><br />
+      <img src="docs/screenshots/zh/storage.jpg" alt="Storage" width="200" /><br />
       <b>Storage</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/app-cache.png" alt="App cache and optimize apps" width="200" /><br />
+      <img src="docs/screenshots/zh/app-cache.jpg" alt="App cache and optimize apps" width="200" /><br />
       <b>App cache</b>
     </td>
   </tr>
   <tr>
     <td align="center" valign="top">
-      <img src="docs/screenshots/appearance-status.png" alt="Appearance and configuration" width="200" /><br />
+      <img src="docs/screenshots/zh/appearance-status.jpg" alt="Appearance and configuration" width="200" /><br />
       <b>Tools</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/extra-power-saving.png" alt="Extra power saving" width="200" /><br />
+      <img src="docs/screenshots/zh/extra-power-saving.jpg" alt="Extra power saving" width="200" /><br />
       <b>Extra power saving</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/battery-drain-system.png" alt="Battery drain (system)" width="200" /><br />
+      <img src="docs/screenshots/zh/battery-drain-system.jpg" alt="Battery drain (system)" width="200" /><br />
       <b>Battery drain (system)</b>
     </td>
   </tr>

@@ -24,71 +24,71 @@
 <table align="center">
   <tr>
     <td align="center" valign="top">
-      <img src="docs/screenshots/home.png" alt="首页" width="200" /><br />
+      <img src="docs/screenshots/zh/home.jpg" alt="首页" width="200" /><br />
       <b>首页</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/heat-control.png" alt="温控" width="200" /><br />
+      <img src="docs/screenshots/zh/heat-control.jpg" alt="温控" width="200" /><br />
       <b>温控</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/battery-drain.png" alt="耗电控制（内核）" width="200" /><br />
+      <img src="docs/screenshots/zh/battery-drain.jpg" alt="耗电控制（内核）" width="200" /><br />
       <b>耗电控制（内核）</b>
     </td>
   </tr>
   <tr>
     <td align="center" valign="top">
-      <img src="docs/screenshots/protected-apps.png" alt="应用保护与限制" width="200" /><br />
+      <img src="docs/screenshots/zh/protected-apps.jpg" alt="应用保护与限制" width="200" /><br />
       <b>应用保护</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/battery-calibration.png" alt="电池校准" width="200" /><br />
+      <img src="docs/screenshots/zh/battery-calibration.jpg" alt="电池校准" width="200" /><br />
       <b>电池校准</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/long-battery.png" alt="续航增强" width="200" /><br />
+      <img src="docs/screenshots/zh/long-battery.jpg" alt="续航增强" width="200" /><br />
       <b>续航增强</b>
     </td>
   </tr>
   <tr>
     <td align="center" valign="top">
-      <img src="docs/screenshots/advanced.png" alt="高级与实验性" width="200" /><br />
+      <img src="docs/screenshots/zh/advanced.jpg" alt="高级与实验性" width="200" /><br />
       <b>高级</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/extra-kernel-tuning.png" alt="内核进阶调校" width="200" /><br />
+      <img src="docs/screenshots/zh/extra-kernel-tuning.jpg" alt="内核进阶调校" width="200" /><br />
       <b>内核进阶调校</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/ram-management.png" alt="内存管理" width="200" /><br />
+      <img src="docs/screenshots/zh/ram-management.jpg" alt="内存管理" width="200" /><br />
       <b>内存管理</b>
     </td>
   </tr>
   <tr>
     <td align="center" valign="top">
-      <img src="docs/screenshots/google-services.png" alt="Google 服务与遥测" width="200" /><br />
+      <img src="docs/screenshots/zh/google-services.jpg" alt="Google 服务与遥测" width="200" /><br />
       <b>Google 服务</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/storage.png" alt="存储" width="200" /><br />
+      <img src="docs/screenshots/zh/storage.jpg" alt="存储" width="200" /><br />
       <b>存储</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/app-cache.png" alt="应用缓存与优化应用" width="200" /><br />
+      <img src="docs/screenshots/zh/app-cache.jpg" alt="应用缓存与优化应用" width="200" /><br />
       <b>应用缓存</b>
     </td>
   </tr>
   <tr>
     <td align="center" valign="top">
-      <img src="docs/screenshots/appearance-status.png" alt="外观与配置" width="200" /><br />
+      <img src="docs/screenshots/zh/appearance-status.jpg" alt="外观与配置" width="200" /><br />
       <b>工具</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/extra-power-saving.png" alt="额外省电" width="200" /><br />
+      <img src="docs/screenshots/zh/extra-power-saving.jpg" alt="额外省电" width="200" /><br />
       <b>额外省电</b>
     </td>
     <td align="center" valign="top">
-      <img src="docs/screenshots/battery-drain-system.png" alt="耗电控制（系统）" width="200" /><br />
+      <img src="docs/screenshots/zh/battery-drain-system.jpg" alt="耗电控制（系统）" width="200" /><br />
       <b>耗电控制（系统）</b>
     </td>
   </tr>
