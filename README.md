@@ -1,10 +1,10 @@
-# HyperCool - 温控与续航修复
+# HyperCool - Heat & Battery Fix
 
 [English](README.en.md) | **简体中文**
 
 ![HyperCool](banner.jpg)
 
-适用于 Qualcomm 和 MediaTek 手机的 KernelSU / Magisk 模块。更少发热、更低耗电、更长续航。
+适用于 高通 和 联发科 手机的 KernelSU / Magisk 模块。更少发热、更低耗电、更长续航。
 专注续航，而非峰值性能。
 
 <p align="center">
@@ -165,7 +165,7 @@
 ## 要求
 - Android 11+
 - KernelSU、KernelSU Next 或 APatch（Magisk：使用 MMRL 或 KsuWebUI 打开 WebUI）
-- Qualcomm 或 MediaTek SoC，任意 ROM
+- 高通 或 联发科 SoC，任意 ROM
 
 ## 文件
 - `/data/adb/hypercool/config.conf` 设置
