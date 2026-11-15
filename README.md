@@ -12,8 +12,7 @@ Focused on battery life, not peak performance.
   <a href="https://github.com/yudharn/HyperCool/releases/latest"><img alt="Latest release" src="docs/badges/release.svg"></a>
 </p>
 
-Everything is set from the WebUI and applied once at the next boot. Nothing keeps running except
-small keepers (charge limit, screen-off keeper that also serves Keep Wi-Fi on, Compact background apps, Location and Bluetooth off, F2FS garbage collection and auto app optimization, auto cache clean, CPU keeper, adaptive refresh rate, battery calibration), and only if you turn them on.
+Everything is configured via WebUI and applied on the next boot. Only lightweight keepers run in the background, and only when enabled.
 
 ## Screenshots
 
