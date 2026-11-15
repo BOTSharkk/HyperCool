@@ -714,8 +714,8 @@ f_soff_prof() {
   _dmin=10; _dmob=1; _dnfc=1
   if [ "$_dat" = 1 ]; then
     _dmin=$(rng soff_data_min 10 5 120); [ "$_dmin" = 0 ] && _dmin=10
-    _dmob=$(cfg soff_data_mobile 1); [ "$_dmob" = 1 ] || _dmob=0
-    _dnfc=$(cfg soff_data_nfc 1); [ "$_dnfc" = 1 ] || _dnfc=0
+    _dmob=$(cfg soff_data_mobile 1); [ "$_dmob" = 0 ] || _dmob=1
+    _dnfc=$(cfg soff_data_nfc 1); [ "$_dnfc" = 0 ] || _dnfc=1
     if [ "$_dmob" = 0 ] && [ "$_dnfc" = 0 ]; then
       st soff_data skipped "both mobile data and NFC are unticked"
       _dat=0
