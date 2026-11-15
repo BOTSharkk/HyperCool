@@ -42,6 +42,10 @@ BRANDS = {
     "MiGT", "Metis", "Telegram", "Ko-fi", "SociaBuzz", "QRIS", "PayPal",
     "Google Play", "Play Store", "WhatsApp", "batterystats.bin", "dex2oat",
 }
+IGNORE = {
+    "use strict", "no ksu", "Escape", "Tab", "Enter", "Current", "Wi-Fi",
+    "GMS Doze", "over voltage", "db.Charge counter",
+}
 
 
 def regex_start(line, i):
@@ -197,7 +201,9 @@ def looks_like_ui(value):
     v = value.strip()
     if not v or not re.search(r"[A-Za-z]", v) or CJK.search(v):
         return False
-    if v in BRANDS or v in MONTHS or UNITS.match(v):
+    if v in BRANDS or v in MONTHS or v in IGNORE or UNITS.match(v):
+        return False
+    if v.startswith(".") or v.startswith("More:") or re.match(r"^(rm |else |chmod )", v):
         return False
     if v.isupper() and len(v) <= 12:
         return False
