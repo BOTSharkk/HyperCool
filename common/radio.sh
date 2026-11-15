@@ -132,12 +132,13 @@ data_set() {
 # 0 = mobile data has to stay on now: a phone call, any audio playing (music, video, VoIP calls),
 # or hotspot / USB / Bluetooth tethering. A call state that cannot be read counts as busy.
 data_busy() {
-  case "$(dumpsys telephony.registry </dev/null 2>/dev/null | grep -m 1 'mCallState=')" in
-    *mCallState=0*) ;;
-    *) return 0 ;;
-  esac
+  # one mCallState line per SIM slot: any slot not idle (or nothing readable) = in a call
+  _dcs=$(dumpsys telephony.registry </dev/null 2>/dev/null | grep 'mCallState=')
+  [ -n "$_dcs" ] || return 0
+  printf '%s\n' "$_dcs" | grep -qvE 'mCallState=0([^0-9]|$)' && return 0
   dumpsys audio </dev/null 2>/dev/null | grep -q 'state:started' && return 0
-  { dumpsys tethering; dumpsys connectivity tethering; } </dev/null 2>/dev/null | grep -q 'TetheredState' && return 0
+  # current state lines only ("ap0 - TetheredState - lastError = 0"), not the event log below them
+  dumpsys tethering </dev/null 2>/dev/null | grep -qE '^[[:space:]]*[A-Za-z0-9_.-]+ - TetheredState' && return 0
   for _ti in /sys/class/net/ap* /sys/class/net/swlan* /sys/class/net/rndis* /sys/class/net/ncm* /sys/class/net/bt-pan*; do
     [ "$(cat "$_ti/operstate" 2>/dev/null)" = up ] && return 0
   done
@@ -147,6 +148,7 @@ nfc_now() {
   case "$(dumpsys nfc </dev/null 2>/dev/null | grep -m 1 'mState=')" in
     *mState=on*) echo on ;;
     *mState=off*) echo off ;;
+    *mState=turning*) echo turning ;;
     *) echo ? ;;
   esac
 }
@@ -166,22 +168,30 @@ data_save() {
   grep -q "^$1|" "$DSAVE" 2>/dev/null && return 0
   printf '%s|\n' "$1" >> "$DSAVE"
 }
+data_unsave() { sed -i "/^$1|/d" "$DSAVE" 2>/dev/null; }
 
 data_off() {
   [ -e "$DSAVE" ] || : > "$DSAVE"
   _drc=0
+  # saved before switching: a slow switch-off still gets switched back on. The entry is dropped
+  # only when the state is still on afterwards (nothing changed)
   if [ "$2" = 1 ] && [ "$(nfc_now)" = on ]; then
-    nfc_set disable && data_save nfc
+    data_save nfc
+    if ! nfc_set disable; then
+      sleep 2
+      [ "$(nfc_now)" = on ] && data_unsave nfc
+    fi
   fi
   # airplane mode: mobile data is already down, nothing to do
   if [ "$1" = 1 ] && [ "$(settings get global airplane_mode_on 2>/dev/null)" != 1 ] && [ "$(data_now)" = on ]; then
     if data_busy; then
       _drc=2
-    elif data_set disable; then
-      data_save data
     else
-      # still on: switch it back so the state matches what was asked for
-      [ "$(data_now)" = off ] || data_set enable >/dev/null 2>&1
+      data_save data
+      if ! data_set disable; then
+        sleep 2
+        [ "$(data_now)" = on ] && data_unsave data
+      fi
     fi
   fi
   return $_drc
@@ -200,6 +210,7 @@ data_restore() {
 " ;;
       nfc)
         _nn=$(nfc_now)
+        [ "$_nn" = turning ] && { sleep 2; _nn=$(nfc_now); }
         [ "$_nn" = on ] && continue
         [ "$_nn" = off ] && nfc_set enable && continue
         _dfail="${_dfail}nfc|
