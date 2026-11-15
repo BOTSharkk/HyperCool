@@ -156,9 +156,6 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Battery check: health, capacity, cycle count, temperature and more
 - Battery calibration: guided full cycle (5% → 100% → until charging finishes) so the battery % is accurate (optionally deletes batterystats.bin)
 
-Every feature shows what it changes and the result of the last boot.
-Turning a feature off puts the original value back. Unsupported features are skipped.
-
 ## Requirements
 - Android 11+
 - KernelSU, KernelSU Next or APatch (Magisk: open the WebUI with MMRL or KsuWebUI)
