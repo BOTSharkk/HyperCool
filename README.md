@@ -90,9 +90,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 </table>
 
 ## Features
-`Every feature has its own ON/OFF switch in the WebUI. Changes apply once at boot, and turning a feature off (or uninstalling) restores the original values` 
-
-`Unsupported features are skipped`
+`Every feature has its own ON/OFF switch in the WebUI. Changes apply once at boot, and turning a feature off (or uninstalling) restores the original values`
 
 **Heat control**
 - Big-core frequency cap (with lock)
@@ -157,6 +155,9 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Battery check: health, capacity, cycle count, temperature and more
 - Battery calibration: guided full cycle (5% → 100% → until charging finishes) so the battery % is accurate (optionally deletes batterystats.bin)
 
+Every feature shows what it changes and the result of the last boot.
+Turning a feature off puts the original value back. Unsupported features are skipped.
+
 ## Requirements
 - Android 11+
 - KernelSU, KernelSU Next or APatch (Magisk: open the WebUI with MMRL or KsuWebUI)
@@ -173,6 +174,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Power Saver Pro by @ShastikXD & @TempMeow (some code by @kveld9)
 - Hyper Optimize by Tatsh
 - Xtreme Battery Saver (DethByte64), Universal GMS Doze, sysconfig-patcher
+- WebUI Mono theme: design inspired by Duck ToolBox by Eltavine (MIT)
 
 ## Support
 
