@@ -48,7 +48,13 @@ radio_off() {
   if [ "$(loc_now)" = on ]; then
     _lm=$(settings get secure location_mode 2>/dev/null)
     cmd location set-location-enabled false </dev/null >/dev/null 2>&1
-    [ "$(loc_now)" = off ] || settings put secure location_mode 0 </dev/null >/dev/null 2>&1
+    if [ "$(loc_now)" != off ]; then
+      settings put secure location_mode 0 </dev/null >/dev/null 2>&1
+      # still on: put the mode back now, or it would stay changed without a record to restore it
+      if [ "$(loc_now)" != off ]; then
+        case "$_lm" in [1-9]) settings put secure location_mode "$_lm" </dev/null >/dev/null 2>&1 ;; esac
+      fi
+    fi
     [ "$(loc_now)" = off ] && radio_save loc "$_lm"
   fi
   if [ "$1" = 1 ] && [ "$(bt_now)" = on ] && ! bt_busy; then
