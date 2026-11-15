@@ -175,6 +175,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Hyper Optimize by Tatsh
 - Xtreme Battery Saver (DethByte64), Universal GMS Doze, sysconfig-patcher
 - WebUI Mono theme: design inspired by Duck ToolBox by Eltavine (MIT)
+- WebUI reference: Specter by @dpejoh1
 
 ## Support
 
