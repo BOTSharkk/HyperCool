@@ -1,6 +1,12 @@
 # Changelog
 
-> Current build: **v2.2.6 (226)**.
+> Current build: **v2.3.0 (230)**.
+
+## v2.3.0 (230)
+
+- New: WebUI Mono theme. Appearance > Mono theme switches to a neutral black and white look with the system font, rounded cards and lists. The Colors option is disabled while Mono is on. Design inspired by Duck ToolBox by Eltavine (MIT).
+- New: Mobile data and NFC off during screen-off (off by default). After the configured delay, mobile data and NFC are switched off while the screen is off and come back when it turns on. It waits during calls, audio playback and tethering.
+- WebUI: the Allow deep CPU sleep card now opens its details panel, so Last boot and What it changes are visible.
 
 ## v2.2.6 (226)
 
