@@ -1,6 +1,6 @@
 # HyperCool - Heat & Battery Fix
 
-**English** | [简体中文](README.zh-CN.md)
+**English** | [简体中文](README.en.md)
 
 ![HyperCool](banner.jpg)
 
