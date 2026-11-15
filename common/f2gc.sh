@@ -114,7 +114,8 @@ gm_num() { _gx=$(gm_get "$1"); case "$_gx" in ''|*[!0-9]*) _gx=0 ;; esac; echo "
 gcf_wl() {
   [ -w "$HC_SYS/power/wake_lock" ] || return 0
   if [ "$1" = 1 ]; then
-    { echo "$GCWL $(( (GCTMAX + 300) * 1000000000 ))" > "$HC_SYS/power/wake_lock"; } 2>/dev/null
+    # timeout in ns as text: (s * 10^9) overflows mksh's 32-bit math and the kernel rejects a negative value
+    { echo "$GCWL $((GCTMAX + 300))000000000" > "$HC_SYS/power/wake_lock"; } 2>/dev/null
   else
     { echo "$GCWL" > "$HC_SYS/power/wake_unlock"; } 2>/dev/null
   fi
