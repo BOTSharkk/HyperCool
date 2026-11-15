@@ -6,7 +6,11 @@
 #                  $RSAVE, one line per radio (loc|<old location_mode>, bt|). Entries that could not be
 #                  restored stay saved and are retried at the next screen-on or boot.
 # radio_restore  : switch back only what radio_off switched off, then empty $RSAVE
+# data_off M N   : switch mobile data (M = 1) and NFC (N = 1) off; saved to $DSAVE (data|, nfc|).
+#                  Returns 2 when mobile data has to stay on for now (call, audio, tethering)
+# data_restore   : switch back only what data_off switched off
 RSAVE=${RSAVE:-${HC_DATA:-/data/adb/hypercool}/soff_radio.save}
+DSAVE=${DSAVE:-${HC_DATA:-/data/adb/hypercool}/soff_data.save}
 
 loc_now() {
   case "$(cmd location is-location-enabled </dev/null 2>/dev/null | head -n 1)" in
@@ -103,5 +107,108 @@ radio_restore() {
     printf '%s' "$_fail" > "$RSAVE"
   else
     : > "$RSAVE"
+  fi
+}
+
+# ---------- mobile data and NFC (soff_data) ----------
+# mobile data of the default data SIM: mobile_data<subId>, plain mobile_data on single-SIM ROMs
+data_now() {
+  _dv=""
+  _dsid=$(settings get global multi_sim_data_call 2>/dev/null)
+  case "$_dsid" in ''|*[!0-9]*) ;; *) _dv=$(settings get global "mobile_data$_dsid" 2>/dev/null) ;; esac
+  case "$_dv" in 0|1) ;; *) _dv=$(settings get global mobile_data 2>/dev/null) ;; esac
+  case "$_dv" in 1) echo on ;; 0) echo off ;; *) echo ? ;; esac
+}
+# data_set enable|disable: svc data, then the telephony shell command when svc did not change it
+data_set() {
+  _dw=on; [ "$1" = disable ] && _dw=off
+  svc data "$1" </dev/null >/dev/null 2>&1
+  sleep 1
+  [ "$(data_now)" = "$_dw" ] && return 0
+  cmd phone data "$1" </dev/null >/dev/null 2>&1
+  sleep 1
+  [ "$(data_now)" = "$_dw" ]
+}
+# 0 = mobile data has to stay on now: a phone call, any audio playing (music, video, VoIP calls),
+# or hotspot / USB / Bluetooth tethering. A call state that cannot be read counts as busy.
+data_busy() {
+  case "$(dumpsys telephony.registry </dev/null 2>/dev/null | grep -m 1 'mCallState=')" in
+    *mCallState=0*) ;;
+    *) return 0 ;;
+  esac
+  dumpsys audio </dev/null 2>/dev/null | grep -q 'state:started' && return 0
+  { dumpsys tethering; dumpsys connectivity tethering; } </dev/null 2>/dev/null | grep -q 'TetheredState' && return 0
+  for _ti in /sys/class/net/ap* /sys/class/net/swlan* /sys/class/net/rndis* /sys/class/net/ncm* /sys/class/net/bt-pan*; do
+    [ "$(cat "$_ti/operstate" 2>/dev/null)" = up ] && return 0
+  done
+  return 1
+}
+nfc_now() {
+  case "$(dumpsys nfc </dev/null 2>/dev/null | grep -m 1 'mState=')" in
+    *mState=on*) echo on ;;
+    *mState=off*) echo off ;;
+    *) echo ? ;;
+  esac
+}
+# nfc_set enable|disable: svc nfc, then the NFC shell command of newer Android versions
+nfc_set() {
+  _nw=on; [ "$1" = disable ] && _nw=off
+  svc nfc "$1" </dev/null >/dev/null 2>&1
+  sleep 1
+  [ "$(nfc_now)" = "$_nw" ] && return 0
+  cmd nfc "$1-nfc" </dev/null >/dev/null 2>&1
+  sleep 1
+  [ "$(nfc_now)" = "$_nw" ]
+}
+# data_save <key> : add an entry to $DSAVE (keeps other entries)
+data_save() {
+  [ -e "$DSAVE" ] || : > "$DSAVE"
+  grep -q "^$1|" "$DSAVE" 2>/dev/null && return 0
+  printf '%s|\n' "$1" >> "$DSAVE"
+}
+
+data_off() {
+  [ -e "$DSAVE" ] || : > "$DSAVE"
+  _drc=0
+  if [ "$2" = 1 ] && [ "$(nfc_now)" = on ]; then
+    nfc_set disable && data_save nfc
+  fi
+  # airplane mode: mobile data is already down, nothing to do
+  if [ "$1" = 1 ] && [ "$(settings get global airplane_mode_on 2>/dev/null)" != 1 ] && [ "$(data_now)" = on ]; then
+    if data_busy; then
+      _drc=2
+    elif data_set disable; then
+      data_save data
+    else
+      # still on: switch it back so the state matches what was asked for
+      [ "$(data_now)" = off ] || data_set enable >/dev/null 2>&1
+    fi
+  fi
+  return $_drc
+}
+data_restore() {
+  [ -s "$DSAVE" ] || return 0
+  # only what was really put back is dropped: the rest stays saved for the next screen-on or boot
+  _dfail=""
+  while IFS='|' read -r _dk _dr; do
+    case "$_dk" in
+      data)
+        _dn=$(data_now)
+        [ "$_dn" = on ] && continue
+        [ "$_dn" = off ] && data_set enable && continue
+        _dfail="${_dfail}data|
+" ;;
+      nfc)
+        _nn=$(nfc_now)
+        [ "$_nn" = on ] && continue
+        [ "$_nn" = off ] && nfc_set enable && continue
+        _dfail="${_dfail}nfc|
+" ;;
+    esac
+  done < "$DSAVE"
+  if [ -n "$_dfail" ]; then
+    printf '%s' "$_dfail" > "$DSAVE"
+  else
+    : > "$DSAVE"
   fi
 }

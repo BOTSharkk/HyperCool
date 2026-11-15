@@ -40,6 +40,11 @@ if [ -s "$HC_DATA/soff_radio.save" ]; then
   # shellcheck source=/dev/null
   [ -f "$MD/common/radio.sh" ] && . "$MD/common/radio.sh" && radio_restore
 fi
+# mobile data / NFC the keeper switched off
+if [ -s "$HC_DATA/soff_data.save" ]; then
+  # shellcheck source=/dev/null
+  [ -f "$MD/common/radio.sh" ] && . "$MD/common/radio.sh" && data_restore
+fi
 # gc_urgent / wake lock of a F2FS GC run that was still going
 if [ -s "$HC_DATA/f2fs_gc.save" ] || [ -s "$HC_DATA/f2fs_gc.fpid" ]; then
   # shellcheck source=/dev/null

@@ -114,6 +114,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Turn off kernel debug, kernel wakelock blocker
 - Keep Wi-Fi on while the screen is off (turns it on again when the ROM switches it off; Wi-Fi you switch off yourself stays off)
 - Location and Bluetooth off after a long screen-off (both come back when the screen turns on; off by default)
+- Mobile data and NFC off during screen-off (back on when the screen turns on; waits during calls, audio and hotspot; off by default)
 - F2FS garbage collection with the screen off (Storage; frees space that only GC can give back; once a week at most, no charger needed; off by default)
 - Auto optimize apps (dex2oat) once a week with the screen off (Storage; speed-profile, no force recompile, result as a notification; off by default)
 - Top battery use (Home; read only: user apps, system apps, system services and hardware, from Android battery stats)

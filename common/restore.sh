@@ -137,6 +137,12 @@ _hc_main() {
     # forced deep Doze left by a keeper that did not stop cleanly
     [ -f "$HC_DATA/doze_forced" ] && dumpsys deviceidle unforce </dev/null >/dev/null 2>&1
     rm -f "$HC_DATA/doze_forced"
+    # mobile data / NFC left off by a screen-off keeper that did not stop cleanly
+    if [ -s "$HC_DATA/soff_data.save" ]; then
+      grep -q '^data|' "$HC_DATA/soff_data.save" && { svc data enable </dev/null >/dev/null 2>&1 || cmd phone data enable </dev/null >/dev/null 2>&1; }
+      grep -q '^nfc|' "$HC_DATA/soff_data.save" && { svc nfc enable </dev/null >/dev/null 2>&1 || cmd nfc enable-nfc </dev/null >/dev/null 2>&1; }
+      : > "$HC_DATA/soff_data.save"
+    fi
     if [ "$_rc" -eq 0 ]; then
       echo "All recorded system changes restored."
     else

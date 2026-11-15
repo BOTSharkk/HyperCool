@@ -640,16 +640,18 @@ f_soff_prof() {
   rm -f "$HC_DATA/soff_watch.pid"
   # Location / Bluetooth left off by a keeper that was killed (or a reboot) while the screen was off
   RSAVE=$HC_DATA/soff_radio.save
+  DSAVE=$HC_DATA/soff_data.save
   # shellcheck source=/dev/null
-  [ -f "$MODDIR/common/radio.sh" ] && . "$MODDIR/common/radio.sh" && radio_restore
+  [ -f "$MODDIR/common/radio.sh" ] && . "$MODDIR/common/radio.sh" && { radio_restore; data_restore; }
   # gc_urgent / wake lock left by a GC run that was cut by a reboot or a killed keeper
   [ -f "$MODDIR/common/f2gc.sh" ] && . "$MODDIR/common/f2gc.sh" && gcf_restore restart
   # one keeper serves the power profile (soff_prof), Wi-Fi keep (wifi_keep), app compaction (x_compact)
-  # and Location / Bluetooth off (soff_radio)
+  # Location / Bluetooth off (soff_radio) and mobile data / NFC off (soff_data)
   _prof=0; on soff_prof && _prof=1
   _wfk=0; on wifi_keep && _wfk=1
   _cmp=0; on x_compact && _cmp=1
   _rad=0; on soff_radio && _rad=1
+  _dat=0; on soff_data && _dat=1
   _gcf=0; on f2fs_gc && _gcf=1
   _dxf=0; on x_dexopt_auto && _dxf=1
   _dxm=speed-profile
@@ -663,9 +665,10 @@ f_soff_prof() {
   [ "$_wfk" = 0 ] && st wifi_keep off
   [ "$_cmp" = 0 ] && st x_compact off
   [ "$_rad" = 0 ] && st soff_radio off
+  [ "$_dat" = 0 ] && st soff_data off
   [ "$_gcf" = 0 ] && st f2fs_gc off
   [ "$_dxf" = 0 ] && st x_dexopt_auto off
-  [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return
+  [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && [ "$_dat" = 0 ] && return
   _sc=60; _sg=1; _sb=1; _st=0; _cc=0
   if [ "$_prof" = 1 ]; then
     _sc=$(rng soff_cpu 60 30 90); [ "$_sc" = 0 ] && _sc=60
@@ -680,14 +683,14 @@ f_soff_prof() {
     if ! ls -d /sys/devices/system/cpu/cpufreq/policy* >/dev/null 2>&1; then
       st soff_prof skipped "no cpufreq policies"
       _prof=0
-      [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return
+      [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && [ "$_dat" = 0 ] && return
     fi
   fi
   if [ "$_wfk" = 1 ]; then
     command -v svc >/dev/null 2>&1 && command -v cmd >/dev/null 2>&1 || {
       st wifi_keep skipped "no svc/cmd command on this Android"
       _wfk=0
-      [ "$_prof" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return
+      [ "$_prof" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && [ "$_dat" = 0 ] && return
     }
   fi
   if [ "$_cmp" = 1 ]; then
@@ -695,7 +698,7 @@ f_soff_prof() {
     case "$_co" in ''|*"Unknown command"*|*"unknown command"*)
       st x_compact skipped "this ROM has no 'cmd activity compact'"
       _cmp=0
-      [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return ;;
+      [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && [ "$_dat" = 0 ] && return ;;
     esac
   fi
   _rbt=0; _rmin=15
@@ -705,8 +708,22 @@ f_soff_prof() {
     command -v settings >/dev/null 2>&1 && command -v cmd >/dev/null 2>&1 || {
       st soff_radio skipped "no settings/cmd command on this Android"
       _rad=0
-      [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return
+      [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && [ "$_dat" = 0 ] && return
     }
+  fi
+  _dmin=10; _dmob=1; _dnfc=1
+  if [ "$_dat" = 1 ]; then
+    _dmin=$(rng soff_data_min 10 5 120); [ "$_dmin" = 0 ] && _dmin=10
+    _dmob=$(cfg soff_data_mobile 1); [ "$_dmob" = 1 ] || _dmob=0
+    _dnfc=$(cfg soff_data_nfc 1); [ "$_dnfc" = 1 ] || _dnfc=0
+    if [ "$_dmob" = 0 ] && [ "$_dnfc" = 0 ]; then
+      st soff_data skipped "both mobile data and NFC are unticked"
+      _dat=0
+    elif ! command -v settings >/dev/null 2>&1 || ! command -v svc >/dev/null 2>&1; then
+      st soff_data skipped "no settings/svc command on this Android"
+      _dat=0
+    fi
+    [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_dat" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return
   fi
   _gcb=4; _gct=1; _gcm=45
   if [ "$_gcf" = 1 ]; then
@@ -718,7 +735,7 @@ f_soff_prof() {
     elif ! _gcd=$(gcf_dev); then
       st f2fs_gc skipped "/data is not F2FS or this kernel has no gc_urgent / unusable nodes"; _gcf=0
     fi
-    [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return
+    [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && [ "$_dat" = 0 ] && return
   fi
   if [ "$_dxf" = 1 ]; then
     if [ ! -f "$MODDIR/common/dxauto.sh" ] || [ ! -f "$MODDIR/common/dexopt.sh" ]; then
@@ -726,16 +743,16 @@ f_soff_prof() {
     elif ! command -v cmd >/dev/null 2>&1 || ! cmd package </dev/null 2>&1 | grep -q compile; then
       st x_dexopt_auto skipped "this ROM has no 'cmd package compile'"; _dxf=0
     fi
-    [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return
+    [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && [ "$_dat" = 0 ] && return
   fi
   _bl=""
   for _b in /sys/class/backlight/*/brightness /sys/class/leds/lcd-backlight/brightness; do
     [ -f "$_b" ] && { _bl=${_b#/sys/class/}; break; }
   done
   if command -v nice >/dev/null 2>&1; then
-    nohup nice -n 19 sh "$MODDIR/common/soff_watch.sh" "$_sc" "$_sg" "$_sb" "$_st" "$_cc" "$_prof" "$_wfk" "$_cmp" "$_rad" "$_rbt" "$_rmin" "$_gcf" "$_gcb" "$_gct" "$_gcm" "$_dxf" "$_dxm" >/dev/null 2>&1 &
+    nohup nice -n 19 sh "$MODDIR/common/soff_watch.sh" "$_sc" "$_sg" "$_sb" "$_st" "$_cc" "$_prof" "$_wfk" "$_cmp" "$_rad" "$_rbt" "$_rmin" "$_gcf" "$_gcb" "$_gct" "$_gcm" "$_dxf" "$_dxm" "$_dat" "$_dmin" "$_dmob" "$_dnfc" >/dev/null 2>&1 &
   else
-    nohup sh "$MODDIR/common/soff_watch.sh" "$_sc" "$_sg" "$_sb" "$_st" "$_cc" "$_prof" "$_wfk" "$_cmp" "$_rad" "$_rbt" "$_rmin" "$_gcf" "$_gcb" "$_gct" "$_gcm" "$_dxf" "$_dxm" >/dev/null 2>&1 &
+    nohup sh "$MODDIR/common/soff_watch.sh" "$_sc" "$_sg" "$_sb" "$_st" "$_cc" "$_prof" "$_wfk" "$_cmp" "$_rad" "$_rbt" "$_rmin" "$_gcf" "$_gcb" "$_gct" "$_gcm" "$_dxf" "$_dxm" "$_dat" "$_dmin" "$_dmob" "$_dnfc" >/dev/null 2>&1 &
   fi
   _i=0
   while [ "$_i" -lt 5 ] && ! hc_soff_pid >/dev/null; do sleep 1; _i=$((_i + 1)); done
@@ -745,6 +762,10 @@ f_soff_prof() {
       st soff_prof applied "$_w (keeper pid $_sp, screen via screen events, fallback ${_bl:-dumpsys power})"
     fi
     [ "$_wfk" = 1 ] && st wifi_keep applied "Wi-Fi turned back on when the ROM switches it off while the screen is off, seen at once through Wi-Fi link events, timer every 60 s (keeper pid $_sp, shared with the screen-off profile; Wi-Fi you switch off yourself stays off)"
+    if [ "$_dat" = 1 ]; then
+      _dwh="mobile data and NFC"; [ "$_dnfc" = 0 ] && _dwh="mobile data"; [ "$_dmob" = 0 ] && _dwh="NFC"
+      st soff_data applied "$_dwh switched off after ${_dmin} min of screen-off and back on when the screen turns on; mobile data waits during calls, audio and tethering (keeper pid $_sp, shared with the screen-off profile)"
+    fi
     [ "$_rad" = 1 ] && st soff_radio applied "Location$([ "$_rbt" = 1 ] && echo " and Bluetooth") switched off after ${_rmin} min of screen-off and back on when the screen turns on (keeper pid $_sp, shared with the screen-off profile)"
     if [ "$_gcf" = 1 ]; then
       _gw="F2FS garbage collection (gc_urgent, up to 7 min) when the screen was off 10 min, once a week, when unusable space is at least ${_gcb} GB; no charger needed (30% battery when not charging); battery under $((_gcm - 5)) C to start, stops at ${_gcm} C, under 20% battery or when the screen turns on"
@@ -756,6 +777,7 @@ f_soff_prof() {
     [ "$_prof" = 1 ] && st soff_prof failed "keeper did not start"
     [ "$_wfk" = 1 ] && st wifi_keep failed "keeper did not start"
     [ "$_rad" = 1 ] && st soff_radio failed "keeper did not start"
+    [ "$_dat" = 1 ] && st soff_data failed "keeper did not start"
     [ "$_gcf" = 1 ] && st f2fs_gc failed "keeper did not start"
     [ "$_dxf" = 1 ] && st x_dexopt_auto failed "keeper did not start"
     [ "$_cmp" = 1 ] && st x_compact failed "keeper did not start"
