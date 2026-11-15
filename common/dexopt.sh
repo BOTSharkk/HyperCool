@@ -161,7 +161,7 @@ guard() {
     : > "$D/stop"; return 1
   fi
   _t=$(cat $B/temp 2>/dev/null)
-  if ! num "$_t"; then
+  if ! num "${_t#-}"; then
     # battery temperature not readable: do not keep compiling
     [ -e "$D/reason" ] || echo hot > "$D/reason"
     : > "$D/stop"; return 1
@@ -177,7 +177,7 @@ guard() {
       sleep 10
       if [ -e "$D/stop" ]; then rm -f "$D/note.$K"; return 1; fi
       _t=$(cat $B/temp 2>/dev/null)
-      if ! num "$_t"; then
+      if ! num "${_t#-}"; then
         rm -f "$D/note.$K"
         [ -e "$D/reason" ] || echo hot > "$D/reason"
         : > "$D/stop"; return 1

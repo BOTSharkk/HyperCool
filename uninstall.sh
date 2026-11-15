@@ -4,6 +4,8 @@
 # HyperCool - uninstall
 HC_DATA=/data/adb/hypercool
 export PATH=/system/bin:/system/xbin:/vendor/bin:/data/adb/ksu/bin:/data/adb/magisk:"$PATH"
+# module dir (also when started as "sh uninstall.sh" from inside it)
+MD=${0%/*}; [ -f "$MD/common/radio.sh" ] || MD=/data/adb/modules/hypercool
 # stop the cache keeper
 _cp=$(cat "$HC_DATA/cache_keeper.pid" 2>/dev/null)
 case "$_cp" in ''|*[!0-9]*) ;; *) grep -q cache_clean "/proc/$_cp/cmdline" 2>/dev/null && kill "$_cp" 2>/dev/null ;; esac
@@ -36,17 +38,17 @@ case "$_sp" in ''|*[!0-9]*) ;; *) grep -q soff_watch "/proc/$_sp/cmdline" 2>/dev
 # Location / Bluetooth the keeper switched off, if it was killed without a clean stop
 if [ -s "$HC_DATA/soff_radio.save" ]; then
   # shellcheck source=/dev/null
-  [ -f "${0%/*}/common/radio.sh" ] && . "${0%/*}/common/radio.sh" && radio_restore
+  [ -f "$MD/common/radio.sh" ] && . "$MD/common/radio.sh" && radio_restore
 fi
 # gc_urgent / wake lock of a F2FS GC run that was still going
 if [ -s "$HC_DATA/f2fs_gc.save" ] || [ -s "$HC_DATA/f2fs_gc.fpid" ]; then
   # shellcheck source=/dev/null
-  [ -f "${0%/*}/common/f2gc.sh" ] && . "${0%/*}/common/f2gc.sh" && gcf_restore uninstall
+  [ -f "$MD/common/f2gc.sh" ] && . "$MD/common/f2gc.sh" && gcf_restore uninstall
 fi
 # an automatic app optimization that was still going
 if [ -f "$HC_DATA/dexopt_auto.run" ]; then
   # shellcheck source=/dev/null
-  [ -f "${0%/*}/common/dxauto.sh" ] && MODDIR=${0%/*} . "${0%/*}/common/dxauto.sh" && dxa_stop uninstall
+  [ -f "$MD/common/dxauto.sh" ] && MODDIR=$MD . "$MD/common/dxauto.sh" && dxa_stop uninstall
 fi
 # stop the battery calibration keeper
 _bq=$(cat "$HC_DATA/bcal_watch.pid" 2>/dev/null)
