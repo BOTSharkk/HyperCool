@@ -1,6 +1,11 @@
 # Changelog
 
-> Current build: **v2.3.1 (231)**.
+> Current build: **v2.3.2 (232)**.
+
+## v2.3.2 (232)
+
+- Fixed: Mobile data and NFC off during screen-off is more reliable now: call detection checks every SIM slot, tethering is detected from the current state instead of the event log, NFC "turning" is handled while restoring, and radios are saved before switching with failed switches undone.
+- WebUI: the Mono theme title is bold.
 
 ## v2.3.1 (231)
 
