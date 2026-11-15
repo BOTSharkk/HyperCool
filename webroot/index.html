@@ -943,7 +943,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     { k: 'soff_radio', s: 'kdrain', src: 'rom', risk: 'moderate', type: 'toggle', def: '0',
       t: 'Location and Bluetooth off during long screen-off',
       d: 'Location turns off after a long screen-off, Bluetooth can too, and both return.',
-      x: 'Fewer GPS and Bluetooth wake-ups. While they are off, location alarms, Find My Device and navigation get no position. Bluetooth stays on while audio plays or an audio device is connected.',
+      x: 'Fewer GPS and Bluetooth wake-ups. While they are off, location alarms, Find My Device and navigation get no position. Bluetooth stays on while audio plays or an audio device is connected; a smartwatch or fitness band loses its connection while Bluetooth is off.',
       fields: [{ k: 'soff_radio_min', label: 'Wait after the screen goes off', def: '15', min: 5, max: 120, unit: 'min' },
                { k: 'soff_radio_bt', label: 'Also turn Bluetooth off', def: '0', bool: true }] },
     { k: 'cpu_idle', s: 'kdrain', src: 'kernel', risk: 'safe', type: 'toggle', def: '1',
@@ -1314,7 +1314,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
   var PRESETS = [
     { n: 'Recommended', v: null },
-    { n: 'Max battery', v: { cpu_cap: '88', prime_park: '0', gpu_cap: '1', gpu_idle: '1', walt_tune: '1', input_boost_off: '1',
+    { n: 'Max battery', v: { cpu_cap: '88', cpu_cap_little: '80', prime_park: '0', gpu_cap: '1', gpu_idle: '1', walt_tune: '1', input_boost_off: '1',
         bg_cpuset: '1', bg_uclamp: '25', blur_off: '1', cpu_idle: '1', ufs_pm: '1', vm_tune: '1', io_tune: '1', debug_off: '1',
         debug_props: '1', wakelock_block: '1', protect_apps: '1', app_bucket: '1', bg_block: '1', app_freezer: '1', doze_aggr: '3', devcfg_lock: '1', gms_doze: '1',
         scan_off: '1', loc_throttle: '2', net_save: '1', standby: '1', stats_reduce: '1', tracking_off: '1', debloat: '1', joyose_off: '1',
@@ -2010,7 +2010,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
   var PRESET_INFO = [
     { i: 'star', d: 'Cooler cores, deeper sleep and safe defaults for most phones', x: 'Cooler big cores, a less aggressive governor, deeper sleep, messengers protected, safe Extras options and auto cache clean on' },
-    { i: 'leaf', d: 'Strongest savings: 88% CPU cap, strict Doze, little background work', x: '88% CPU cap, GPU one step below max, screen-off power profile, Maximum Doze, kernel wakelock blocker, restricted background apps, Joyose off, 60 Hz, Extreme Battery Saver at 20%, blur off, fewer background jobs, Location and Bluetooth off during long screen-off, auto F2FS GC and dex2oat, power saving for idle devices, all Extras options except Multitasking and ZRAM. Charging, Keep Wi-Fi on, Adaptive refresh rate, ZRAM, Multitasking and Compact background apps stay as you set them' },
+    { i: 'leaf', d: 'Strongest savings: 88% big-core and 80% little-core caps, strict Doze, little background work', x: '88% big-core cap, 80% little-core cap, GPU one step below max, screen-off power profile, Maximum Doze, kernel wakelock blocker, restricted background apps, Joyose off, 60 Hz, Extreme Battery Saver at 20%, blur off, fewer background jobs, Location off during long screen-off, auto F2FS GC and dex2oat, power saving for idle devices, all Extras options except Multitasking and ZRAM. Charging, Keep Wi-Fi on, Adaptive refresh rate, ZRAM, Multitasking and Compact background apps stay as you set them' },
     { i: 'game', d: 'Keeps performance high and cuts heat: 95% CPU cap, background work limited', x: '95% CPU cap, GPU power collapse with throttling off, background apps on little cores, governor, refresh rate, Joyose and Game Turbo left stock, Performance multitasking, no app restriction, plus auto F2FS GC and dex2oat and power saving for idle devices. Charging, Keep Wi-Fi on, Adaptive refresh rate, ZRAM and Compact background apps stay as you set them' },
     { i: 'sliders', d: '' },
     { i: 'cpu', d: 'Kernel tweaks only; every system option is switched off', x: 'Only kernel tweaks (including the Extras kernel options); every system option is switched off' },
@@ -2930,7 +2930,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       ' echo "== cpu keeper"; cat $D/cpu_watch.state 2>/dev/null; cat $D/cpu_keep.list 2>/dev/null;' +
       ' echo "== core_ctl (prime cluster)"; P=; M=0; for x in /sys/devices/system/cpu/cpufreq/policy*; do m=$(cat $x/cpuinfo_max_freq 2>/dev/null); [ -n "$m" ] && [ "$m" -gt "$M" ] && { M=$m; P=$x; }; done; set -- $(cat $P/related_cpus 2>/dev/null); c=/sys/devices/system/cpu/cpu$1/core_ctl; echo "cpu=$1"; for n in enable min_cpus max_cpus; do echo "$n=$(cat $c/$n 2>/dev/null) mode=$(stat -c %a $c/$n 2>/dev/null)"; done; echo "isolated=[$(cat /sys/devices/system/cpu/isolated 2>/dev/null)] online=$(cat /sys/devices/system/cpu/cpu$1/online 2>/dev/null)"; grep -A12 "^CPU$1" $c/global_state 2>/dev/null;' +
       ' echo "== dexopt"; [ -f $D/dexopt/state ] && { cat $D/dexopt/state; tail -n 20 $D/dexopt/fail.log 2>/dev/null; };' +
-      ' echo "== boot log"; cat $D/boot.log;' +
+      ' echo "== boot log"; cat $D/boot.log 2>/dev/null || echo "(no boot log yet)";' +
       ' } > "$f" 2>&1 || { echo "write failed" >&2; exit 4; }; echo "OK|$f"').then(function (r) {
       var m = /OK\|(.+)/.exec(r.stdout || '');
       if (m) snack('Report saved: Download/HyperCool/' + m[1].trim().split('/').pop());
