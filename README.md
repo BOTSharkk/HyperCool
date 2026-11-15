@@ -91,6 +91,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 
 ## Features
 `Every feature has its own ON/OFF switch in the WebUI. Changes apply once at boot, and turning a feature off (or uninstalling) restores the original values`
+`Unsupported features are skipped`
 
 **Heat control**
 - Big-core frequency cap (with lock)
