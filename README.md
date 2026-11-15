@@ -92,6 +92,8 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 ## Features
 `Every feature has its own ON/OFF switch in the WebUI. Changes apply once at boot, and turning a feature off (or uninstalling) restores the original values`
 
+`Unsupported features are skipped`
+
 **Heat control**
 - Big-core frequency cap (with lock)
 - Little-core frequency cap (default off, with lock)
@@ -154,9 +156,6 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Idle drain: battery drop per hour with the screen off since the last unplug (shows after a 1% drop)
 - Battery check: health, capacity, cycle count, temperature and more
 - Battery calibration: guided full cycle (5% → 100% → until charging finishes) so the battery % is accurate (optionally deletes batterystats.bin)
-
-Every feature shows what it changes and the result of the last boot.
-Turning a feature off puts the original value back. Unsupported features are skipped.
 
 ## Requirements
 - Android 11+
