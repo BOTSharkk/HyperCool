@@ -243,6 +243,11 @@ hc_core_state() {
   [ -f "$2/global_state" ] || return 0
   awk -v c="CPU$1" '$1==c{f=1;next} /^CPU[0-9]+$/{f=0} f && ($1=="Paused:" || $1=="Isolated:"){print $2; exit}' "$2/global_state" 2>/dev/null
 }
+# hc_pp_back <core_ctl dir> <min_cpus> <max_cpus>: limits back to what they were before parking
+hc_pp_back() {
+  case "$2" in ''|*[!0-9]*) ;; *) wtry "$1/min_cpus" "$2" ;; esac
+  case "$3" in ''|*[!0-9]*) ;; *) wtry "$1/max_cpus" "$3" ;; esac
+}
 f_prime_park() {
   on prime_park || { st prime_park off; return; }
   on_qcom_ok || { st prime_park skipped "needs Qualcomm core_ctl (not on MediaTek)"; return; }
@@ -253,6 +258,8 @@ f_prime_park() {
     _c=$(rd "$_pp/related_cpus" | awk '{print $1}')
     _cc=/sys/devices/system/cpu/cpu$_c/core_ctl
     _en=""
+    # limits before any write: put back when parking does not work
+    _omin=$(rd "$_cc/min_cpus"); _omax=$(rd "$_cc/max_cpus")
     if [ -f "$_cc/enable" ] && [ "$(rd "$_cc/enable")" = 0 ]; then
       # core_ctl is off on this cluster: limits first, then switch it on (reverted below if it does not work)
       if [ ! -f "$_cc/max_cpus" ]; then
@@ -262,6 +269,7 @@ f_prime_park() {
       [ -f "$_cc/min_cpus" ] && wtry "$_cc/min_cpus" 0
       wtry "$_cc/max_cpus" 0
       if ! wtry "$_cc/enable" 1; then
+        hc_pp_back "$_cc" "$_omin" "$_omax"
         fin prime_park "" "core_ctl is disabled on this cluster (enable=0) and does not accept enable=1"
         return
       fi
@@ -294,6 +302,7 @@ f_prime_park() {
         [ -n "$_ok" ] || _why="cpu$_c was not parked (paused/isolated) by core_ctl"
       fi
       if [ -n "$_why" ]; then
+        hc_pp_back "$_cc" "$_omin" "$_omax"
         [ -n "$_en" ] && wtry "$_cc/enable" 0
         log "  prime_park: $_why${_en:+, core_ctl switched off again}"
         st prime_park skipped "$_why${_en:+ (core_ctl put back to off)}"
@@ -385,7 +394,7 @@ hc_gpu_dev() {
 f_gpu_idle() {
   on gpu_idle || { st gpu_idle off; return; }
   _k=/sys/class/kgsl/kgsl-3d0
-  _t=$(rng gpu_idle_timer 64 20 200)
+  _t=$(rng gpu_idle_timer 20 20 200)
   cnt_reset
   if [ ! -d "$_k" ] || ! on_qcom_ok; then
     on_mtk_ok || { fin gpu_idle "" "no Adreno kgsl device"; return; }
@@ -411,8 +420,8 @@ f_gpu_idle() {
 
 f_walt_tune() {
   on walt_tune || { st walt_tune off; return; }
-  _hl=$(rng walt_hispeed_load 95 50 100)
-  _ur=$(rng walt_up_rate 1000 100 20000)
+  _hl=$(rng walt_hispeed_load 99 50 100)
+  _ur=$(rng walt_up_rate 5000 100 20000)
   cnt_reset
   _wpl=0; _whl=0; _wur=0
   for _g in /sys/devices/system/cpu/cpufreq/policy*/walt /sys/devices/system/cpu/cpufreq/policy*/schedutil \
@@ -473,7 +482,7 @@ f_input_boost_off() {
 
 f_bg_cpuset() {
   on bg_cpuset || { st bg_cpuset off; return; }
-  _uc=$(rng bg_uclamp 50 10 100)
+  _uc=$(rng bg_uclamp 25 10 100)
   cnt_reset
   _lp=$(hc_little_policy)
   _cpus=$(rd "$_lp/related_cpus")
@@ -636,20 +645,35 @@ f_soff_prof() {
     kill "$_sp" 2>/dev/null
     # it finishes its current sleep, writes the saved values back, then exits
     _i=0; while [ "$_i" -lt 6 ] && [ -d "/proc/$_sp" ]; do sleep 1; _i=$((_i + 1)); done
+    # a keeper stuck in a node write must not keep running next to the new one
+    if [ -d "/proc/$_sp" ] && grep -q soff_watch "/proc/$_sp/cmdline" 2>/dev/null; then
+      kill -9 "$_sp" 2>/dev/null
+      _i=0; while [ "$_i" -lt 2 ] && [ -d "/proc/$_sp" ]; do sleep 1; _i=$((_i + 1)); done
+    fi
   fi
   rm -f "$HC_DATA/soff_watch.pid"
+  # values a killed keeper left behind, or a restore that failed while the screen turned on
+  _slib=$MODDIR/common/soff_restore.sh
+  [ -f "$_slib" ] || _slib=$HC_DATA/soff_restore.sh
+  if [ -f "$_slib" ]; then
+    # shellcheck source=/dev/null
+    . "$_slib"
+    [ -s "$HC_DATA/soff_watch.save" ] && hc_soff_restore "$HC_DATA/soff_watch.save"
+  fi
   # Location / Bluetooth left off by a keeper that was killed (or a reboot) while the screen was off
   RSAVE=$HC_DATA/soff_radio.save
+  DSAVE=$HC_DATA/soff_data.save
   # shellcheck source=/dev/null
-  [ -f "$MODDIR/common/radio.sh" ] && . "$MODDIR/common/radio.sh" && radio_restore
+  [ -f "$MODDIR/common/radio.sh" ] && . "$MODDIR/common/radio.sh" && { radio_restore; data_restore; }
   # gc_urgent / wake lock left by a GC run that was cut by a reboot or a killed keeper
   [ -f "$MODDIR/common/f2gc.sh" ] && . "$MODDIR/common/f2gc.sh" && gcf_restore restart
   # one keeper serves the power profile (soff_prof), Wi-Fi keep (wifi_keep), app compaction (x_compact)
-  # and Location / Bluetooth off (soff_radio)
+  # Location / Bluetooth off (soff_radio) and mobile data / NFC off (soff_data)
   _prof=0; on soff_prof && _prof=1
   _wfk=0; on wifi_keep && _wfk=1
   _cmp=0; on x_compact && _cmp=1
   _rad=0; on soff_radio && _rad=1
+  _dat=0; on soff_data && _dat=1
   _gcf=0; on f2fs_gc && _gcf=1
   _dxf=0; on x_dexopt_auto && _dxf=1
   _dxm=speed-profile
@@ -663,12 +687,13 @@ f_soff_prof() {
   [ "$_wfk" = 0 ] && st wifi_keep off
   [ "$_cmp" = 0 ] && st x_compact off
   [ "$_rad" = 0 ] && st soff_radio off
+  [ "$_dat" = 0 ] && st soff_data off
   [ "$_gcf" = 0 ] && st f2fs_gc off
   [ "$_dxf" = 0 ] && st x_dexopt_auto off
-  [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return
-  _sc=60; _sg=1; _sb=1; _st=0; _cc=0
+  [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && [ "$_dat" = 0 ] && return
+  _sc=30; _sg=1; _sb=1; _st=0; _cc=0
   if [ "$_prof" = 1 ]; then
-    _sc=$(rng soff_cpu 60 30 90); [ "$_sc" = 0 ] && _sc=60
+    _sc=$(rng soff_cpu 30 30 90); [ "$_sc" = 0 ] && _sc=30
     _sg=$(cfg soff_gpu 1); _sb=$(cfg soff_boost 1)
     # Big-core cap % (same rules as f_cpu_cap): the keeper puts the CPU limit back to it, never to a
     # value read while thermal limits were active
@@ -680,14 +705,14 @@ f_soff_prof() {
     if ! ls -d /sys/devices/system/cpu/cpufreq/policy* >/dev/null 2>&1; then
       st soff_prof skipped "no cpufreq policies"
       _prof=0
-      [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return
+      [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && [ "$_dat" = 0 ] && return
     fi
   fi
   if [ "$_wfk" = 1 ]; then
     command -v svc >/dev/null 2>&1 && command -v cmd >/dev/null 2>&1 || {
       st wifi_keep skipped "no svc/cmd command on this Android"
       _wfk=0
-      [ "$_prof" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return
+      [ "$_prof" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && [ "$_dat" = 0 ] && return
     }
   fi
   if [ "$_cmp" = 1 ]; then
@@ -695,18 +720,32 @@ f_soff_prof() {
     case "$_co" in ''|*"Unknown command"*|*"unknown command"*)
       st x_compact skipped "this ROM has no 'cmd activity compact'"
       _cmp=0
-      [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return ;;
+      [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && [ "$_dat" = 0 ] && return ;;
     esac
   fi
-  _rbt=0; _rmin=15
+  _rbt=0; _rmin=5
   if [ "$_rad" = 1 ]; then
     _rbt=$(cfg soff_radio_bt 0); [ "$_rbt" = 1 ] || _rbt=0
-    _rmin=$(rng soff_radio_min 15 5 120); [ "$_rmin" = 0 ] && _rmin=15
+    _rmin=$(rng soff_radio_min 5 5 120); [ "$_rmin" = 0 ] && _rmin=5
     command -v settings >/dev/null 2>&1 && command -v cmd >/dev/null 2>&1 || {
       st soff_radio skipped "no settings/cmd command on this Android"
       _rad=0
-      [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return
+      [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && [ "$_dat" = 0 ] && return
     }
+  fi
+  _dmin=5; _dmob=1; _dnfc=1
+  if [ "$_dat" = 1 ]; then
+    _dmin=$(rng soff_data_min 5 5 120); [ "$_dmin" = 0 ] && _dmin=5
+    _dmob=$(cfg soff_data_mobile 1); [ "$_dmob" = 0 ] || _dmob=1
+    _dnfc=$(cfg soff_data_nfc 1); [ "$_dnfc" = 0 ] || _dnfc=1
+    if [ "$_dmob" = 0 ] && [ "$_dnfc" = 0 ]; then
+      st soff_data skipped "both mobile data and NFC are unticked"
+      _dat=0
+    elif ! command -v settings >/dev/null 2>&1 || ! command -v svc >/dev/null 2>&1; then
+      st soff_data skipped "no settings/svc command on this Android"
+      _dat=0
+    fi
+    [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_dat" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return
   fi
   _gcb=4; _gct=1; _gcm=45
   if [ "$_gcf" = 1 ]; then
@@ -718,7 +757,7 @@ f_soff_prof() {
     elif ! _gcd=$(gcf_dev); then
       st f2fs_gc skipped "/data is not F2FS or this kernel has no gc_urgent / unusable nodes"; _gcf=0
     fi
-    [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return
+    [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && [ "$_dat" = 0 ] && return
   fi
   if [ "$_dxf" = 1 ]; then
     if [ ! -f "$MODDIR/common/dxauto.sh" ] || [ ! -f "$MODDIR/common/dexopt.sh" ]; then
@@ -726,26 +765,30 @@ f_soff_prof() {
     elif ! command -v cmd >/dev/null 2>&1 || ! cmd package </dev/null 2>&1 | grep -q compile; then
       st x_dexopt_auto skipped "this ROM has no 'cmd package compile'"; _dxf=0
     fi
-    [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && return
+    [ "$_prof" = 0 ] && [ "$_wfk" = 0 ] && [ "$_cmp" = 0 ] && [ "$_rad" = 0 ] && [ "$_gcf" = 0 ] && [ "$_dxf" = 0 ] && [ "$_dat" = 0 ] && return
   fi
   _bl=""
   for _b in /sys/class/backlight/*/brightness /sys/class/leds/lcd-backlight/brightness; do
     [ -f "$_b" ] && { _bl=${_b#/sys/class/}; break; }
   done
   if command -v nice >/dev/null 2>&1; then
-    nohup nice -n 19 sh "$MODDIR/common/soff_watch.sh" "$_sc" "$_sg" "$_sb" "$_st" "$_cc" "$_prof" "$_wfk" "$_cmp" "$_rad" "$_rbt" "$_rmin" "$_gcf" "$_gcb" "$_gct" "$_gcm" "$_dxf" "$_dxm" >/dev/null 2>&1 &
+    nohup nice -n 19 sh "$MODDIR/common/soff_watch.sh" "$_sc" "$_sg" "$_sb" "$_st" "$_cc" "$_prof" "$_wfk" "$_cmp" "$_rad" "$_rbt" "$_rmin" "$_gcf" "$_gcb" "$_gct" "$_gcm" "$_dxf" "$_dxm" "$_dat" "$_dmin" "$_dmob" "$_dnfc" >/dev/null 2>&1 &
   else
-    nohup sh "$MODDIR/common/soff_watch.sh" "$_sc" "$_sg" "$_sb" "$_st" "$_cc" "$_prof" "$_wfk" "$_cmp" "$_rad" "$_rbt" "$_rmin" "$_gcf" "$_gcb" "$_gct" "$_gcm" "$_dxf" "$_dxm" >/dev/null 2>&1 &
+    nohup sh "$MODDIR/common/soff_watch.sh" "$_sc" "$_sg" "$_sb" "$_st" "$_cc" "$_prof" "$_wfk" "$_cmp" "$_rad" "$_rbt" "$_rmin" "$_gcf" "$_gcb" "$_gct" "$_gcm" "$_dxf" "$_dxm" "$_dat" "$_dmin" "$_dmob" "$_dnfc" >/dev/null 2>&1 &
   fi
   _i=0
   while [ "$_i" -lt 5 ] && ! hc_soff_pid >/dev/null; do sleep 1; _i=$((_i + 1)); done
   if _sp=$(hc_soff_pid); then
     if [ "$_prof" = 1 ]; then
-      _w="big cores ${_sc}%$([ "$_sg" = 1 ] && echo ", GPU lowest")$([ "$_sb" = 1 ] && echo ", boosts off") while the screen is off"
+      _w="big cores ${_sc}%$([ "$_sg" = 1 ] && echo ", GPU lowest")$([ "$_sb" = 1 ] && echo ", boosts off") while the screen is off, rechecked every 60 s"
       st soff_prof applied "$_w (keeper pid $_sp, screen via screen events, fallback ${_bl:-dumpsys power})"
     fi
     [ "$_wfk" = 1 ] && st wifi_keep applied "Wi-Fi turned back on when the ROM switches it off while the screen is off, seen at once through Wi-Fi link events, timer every 60 s (keeper pid $_sp, shared with the screen-off profile; Wi-Fi you switch off yourself stays off)"
-    [ "$_rad" = 1 ] && st soff_radio applied "Location$([ "$_rbt" = 1 ] && echo " and Bluetooth") switched off after ${_rmin} min of screen-off and back on when the screen turns on (keeper pid $_sp, shared with the screen-off profile)"
+    if [ "$_dat" = 1 ]; then
+      _dwh="mobile data and NFC"; [ "$_dnfc" = 0 ] && _dwh="mobile data"; [ "$_dmob" = 0 ] && _dwh="NFC"
+      st soff_data applied "$_dwh switched off after ${_dmin} min of screen-off and back on when the screen turns on; mobile data waits during calls, audio and tethering (keeper pid $_sp, shared with the screen-off profile)"
+    fi
+    [ "$_rad" = 1 ] && st soff_radio applied "Location$([ "$_rbt" = 1 ] && echo " and Bluetooth") switched off after ${_rmin} min of screen-off and back on when the screen turns on; if a switch is still on, it is retried every 5 min (keeper pid $_sp, shared with the screen-off profile)"
     if [ "$_gcf" = 1 ]; then
       _gw="F2FS garbage collection (gc_urgent, up to 7 min) when the screen was off 10 min, once a week, when unusable space is at least ${_gcb} GB; no charger needed (30% battery when not charging); battery under $((_gcm - 5)) C to start, stops at ${_gcm} C, under 20% battery or when the screen turns on"
       st f2fs_gc applied "$_gw$([ "$_gct" = 1 ] && echo ", fstrim at most weekly") (keeper pid $_sp, shared with the screen-off profile)"
@@ -756,6 +799,7 @@ f_soff_prof() {
     [ "$_prof" = 1 ] && st soff_prof failed "keeper did not start"
     [ "$_wfk" = 1 ] && st wifi_keep failed "keeper did not start"
     [ "$_rad" = 1 ] && st soff_radio failed "keeper did not start"
+    [ "$_dat" = 1 ] && st soff_data failed "keeper did not start"
     [ "$_gcf" = 1 ] && st f2fs_gc failed "keeper did not start"
     [ "$_dxf" = 1 ] && st x_dexopt_auto failed "keeper did not start"
     [ "$_cmp" = 1 ] && st x_compact failed "keeper did not start"
@@ -873,10 +917,10 @@ f_ufs_pm() {
 
 f_vm_tune() {
   on vm_tune || { st vm_tune off; return; }
-  _wb=$(rng vm_writeback 3000 500 6000)
-  _sti=$(rng vm_stat_interval 10 1 60)
-  _dbr=$(rng vm_dirty_bg 10 0 50)
-  _dr=$(rng vm_dirty 30 0 80)
+  _wb=$(rng vm_writeback 6000 500 6000)
+  _sti=$(rng vm_stat_interval 60 1 60)
+  _dbr=$(rng vm_dirty_bg 20 0 50)
+  _dr=$(rng vm_dirty 40 0 80)
   cnt_reset
   _v=/proc/sys/vm
   [ "$_wb" -gt 0 ] && wn "$_v/dirty_writeback_centisecs" "$_wb"
@@ -1292,10 +1336,16 @@ f_doze_aggr() {
     _key=${_kv%%=*}; _val=${_kv#*=}
     case "$_key" in ''|*[!a-z_]*) continue ;; esac
     case "$_val" in ''|*[!0-9.]*) continue ;; esac
-    set_d doze_aggr device_idle "$_key" "$_val"
+    if set_d doze_aggr device_idle "$_key" "$_val"; then
+      _got=$(device_config get device_idle "$_key" </dev/null 2>/dev/null)
+      [ "$_got" = "$_val" ] || { cnt_fail; log "  doze_aggr: $_key reads [$_got] after write, wanted [$_val]"; }
+    fi
   done
   # Android <= 11 and some ROMs still read the global string
-  set_s doze_aggr global device_idle_constants "$_c"
+  if set_s doze_aggr global device_idle_constants "$_c"; then
+    _got=$(settings get global device_idle_constants </dev/null 2>/dev/null)
+    [ "$_got" = "$_c" ] || { cnt_fail; log "  doze_aggr: device_idle_constants was not stored as written"; }
+  fi
   sed -i '/^doze_aggr|meta|/d' "$HC_ROMBAK" 2>/dev/null
   echo "doze_aggr|meta|-|level|$_nm:$_c" >> "$HC_ROMBAK"
   dumpsys deviceidle enable all </dev/null >/dev/null 2>&1
@@ -1390,6 +1440,29 @@ f_gms_doze_verify() {
 f_scan_off() {
   on scan_off || { restore_feature scan_off; st scan_off off; return; }
   cnt_reset
+  # Android 12+ reads this from the Wi-Fi config store; the legacy global key alone is
+  # ignored on some ROMs. Record the original so restore_feature can put it back.
+  _ws_orig='?'
+  if command -v cmd >/dev/null 2>&1; then
+    _ws=$(cmd wifi status </dev/null 2>/dev/null | grep -i -m1 'scanning is')
+    case "$_ws" in
+      *always*) _ws_orig=on ;;
+      *only*) _ws_orig=off ;;
+    esac
+  fi
+  if [ "$_ws_orig" = on ]; then
+    recv scan_off cmdwifi - scan "$_ws_orig"
+    if cmd wifi set-scan-always-available disabled </dev/null >/dev/null 2>&1; then
+      # `cmd wifi` can accept the command and still leave the setting on
+      _ws=$(cmd wifi status </dev/null 2>/dev/null | grep -i -m1 'scanning is')
+      case "$_ws" in
+        *only*) cnt_ok ;;
+        *) cnt_fail; log "  scan_off: Wi-Fi scan-always is still on (${_ws:-no status})" ;;
+      esac
+    else
+      cnt_fail
+    fi
+  fi
   set_s scan_off global wifi_scan_always_enabled 0
   set_s scan_off global ble_scan_always_enabled 0
   set_s scan_off global wifi_scan_throttle_enabled 1
@@ -1617,11 +1690,17 @@ f_rr_adapt() {
   # the peak cap owns the same settings: give them back first so the backup holds the ROM values
   restore_feature refresh_rate
   cnt_reset
-  _mx=$(rng rr_active 120 60 165); _mn=$(rng rr_idle 60 30 120)
+  _mx=$(rng rr_active 0 60 165); _mn=$(rng rr_idle 0 1 120)
   _ml=$(dumpsys display 2>/dev/null | grep -m 1 -i 'supportedModes' | grep -o 'fps=[0-9]*' | cut -d= -f2 | sort -un | tr '\n' ' ' | sed 's/ *$//')
   if [ -n "$_ml" ]; then
+    _max_mode=${_ml##* }; _min_mode=${_ml%% *}
+    [ "$_mx" = 0 ] && _mx=$_max_mode
+    [ "$_mn" = 0 ] && _mn=$_min_mode
     # shellcheck disable=SC2086
     _mx=$(hc_near "$_mx" $_ml); _mn=$(hc_near "$_mn" $_ml)
+  else
+    [ "$_mx" = 0 ] && _mx=90
+    [ "$_mn" = 0 ] && _mn=30
   fi
   if [ "$_mn" -ge "$_mx" ]; then
     restore_feature rr_adapt

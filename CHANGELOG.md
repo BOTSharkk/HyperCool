@@ -1,6 +1,33 @@
 # Changelog
 
-> Current build: **v2.2.5 (225)**.
+> Current build: **v2.3.2 (232)**.
+
+## v2.3.2 (232)
+
+- Fixed: Mobile data and NFC off during screen-off is more reliable now: call detection checks every SIM slot, tethering is detected from the current state instead of the event log, NFC "turning" is handled while restoring, and radios are saved before switching with failed switches undone.
+- WebUI: the Mono theme title is bold.
+
+## v2.3.1 (231)
+
+- WebUI: the Mono theme status pills are neutral now, the applied state uses the normal text colour, and the partial state uses a dashed outline. Added matching warning/ok state colours for the Mono theme.
+- WebUI: the Extra block I/O tuning card now opens its details panel, so "What it changes" is visible.
+- WebUI: Clean cache and Clean RAM now use the primary button style.
+
+## v2.3.0 (230)
+
+- New: WebUI Mono theme. Appearance > Mono theme switches to a neutral black and white look with the system font, rounded cards and lists. The Colors option is disabled while Mono is on. Design inspired by Duck ToolBox by Eltavine (MIT).
+- New: Mobile data and NFC off during screen-off (off by default). After the configured delay, mobile data and NFC are switched off while the screen is off and come back when it turns on. It waits during calls, audio playback and tethering.
+- WebUI: the Allow deep CPU sleep card now opens its details panel, so Last boot and What it changes are visible.
+
+## v2.2.6 (226)
+
+- Fixed: the F2FS GC wake-lock timeout overflowed mksh's 32-bit arithmetic and became negative, so the kernel rejected it. The timeout is now written correctly.
+- Fixed: Location could stay off after the screen turned on when the ROM ignored the location command but accepted the `location_mode` fallback. The old mode is now restored immediately if the switch cannot be completed, instead of leaving Location off without a restore record.
+- Fixed: Create bug report reported "Report failed" after saving when `boot.log` did not exist yet.
+- Fixed: Auto optimize apps treated battery temperatures below 0 °C as unreadable and stopped with "too warm".
+- Fixed: the Max battery preset description claimed that Bluetooth was turned off; the preset only turns Location off. The Bluetooth option now also mentions that a smartwatch or fitness band loses its connection while Bluetooth is off.
+- Fixed: `uninstall.sh` could not find the module files when started as `sh uninstall.sh` from inside the module directory.
+- Changed: the Max battery preset now also sets the Little-core frequency cap to 80%.
 
 ## v2.2.5 (225)
 

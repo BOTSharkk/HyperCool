@@ -73,7 +73,10 @@ def rounded(svg: str, radius: int) -> str:
 def fetch(url: str) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": "hypercool-badges"})
     with urllib.request.urlopen(req, timeout=30) as resp:
-        return resp.read().decode("utf-8")
+        svg = resp.read().decode("utf-8")
+    if "INVALID" in svg.upper():
+        raise ValueError("shields.io returned an invalid badge")
+    return svg
 
 
 def main() -> int:

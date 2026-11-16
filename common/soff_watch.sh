@@ -5,14 +5,17 @@
 # Wi-Fi keep (WIFI=1: turn Wi-Fi on again when the ROM switches it off while the screen is off) and
 # background app compaction (COMPACT=1: common/compact.sh, 90 s after the screen goes off, low RAM only)
 # and Location / Bluetooth off after a long screen-off (RADIO=1, RBT=1 adds Bluetooth, RMIN minutes: common/radio.sh)
+# and mobile data / NFC off after a screen-off (DATA=1, DMIN minutes, DMOB=1 mobile data, DNFC=1 NFC: common/radio.sh)
 # and automatic app optimization (DXF=1, DXM mode: dex2oat, screen off 10 min, once a week, no force recompile: common/dxauto.sh)
 # and F2FS garbage collection (GCF=1: screen off 10 min, once a week, battery under GCT-5 C; GCGB trigger in GB, GCTRIM=1 adds fstrim, GCT stop temperature: common/f2gc.sh)
-PCT=$1 GPU=$2 BST=$3 TCH=$4 CAP=${5:-0} PROF=${6:-1} WIFI=${7:-0} COMPACT=${8:-0} RADIO=${9:-0} RBT=${10:-0} RMIN=${11:-15} GCF=${12:-0} GCGB=${13:-4} GCTRIM=${14:-1} GCT=${15:-45} DXF=${16:-0} DXM=${17:-speed-profile}
+PCT=$1 GPU=$2 BST=$3 TCH=$4 CAP=${5:-0} PROF=${6:-1} WIFI=${7:-0} COMPACT=${8:-0} RADIO=${9:-0} RBT=${10:-0} RMIN=${11:-15} GCF=${12:-0} GCGB=${13:-4} GCTRIM=${14:-1} GCT=${15:-45} DXF=${16:-0} DXM=${17:-speed-profile} DATA=${18:-0} DMIN=${19:-10} DMOB=${20:-1} DNFC=${21:-1}
 HC_DATA=/data/adb/hypercool
 MODDIR=/data/adb/modules/hypercool
 PIDF=$HC_DATA/soff_watch.pid
 STATE=$HC_DATA/soff_watch.state
 SAVE=$HC_DATA/soff_watch.save
+HC_SOFF_LIB_OK=0
+[ -f "$MODDIR/common/soff_restore.sh" ] && . "$MODDIR/common/soff_restore.sh" && HC_SOFF_LIB_OK=1
 
 case "$PCT" in ''|*[!0-9]*) exit 1 ;; esac
 case "$CAP" in ''|*[!0-9]*) CAP=0 ;; esac
@@ -27,8 +30,12 @@ CDELAY=${HC_CDELAY:-90}; CCOOL=${HC_CCOOL:-1200}
 [ "$COMPACT" = 1 ] && . "$MODDIR/common/compact.sh"
 case "$RMIN" in ''|*[!0-9]*) RMIN=15 ;; esac
 RDELAY=${HC_RDELAY:-$((RMIN * 60))}
+RRETRY=${HC_RRETRY:-300}; RTRIES=${HC_RTRIES:-12}
 RSAVE=$HC_DATA/soff_radio.save
-if [ -f "$MODDIR/common/radio.sh" ]; then . "$MODDIR/common/radio.sh"; else radio_off() { :; }; radio_restore() { :; }; fi
+DSAVE=$HC_DATA/soff_data.save
+case "$DMIN" in ''|*[!0-9]*) DMIN=10 ;; esac
+DDELAY=${HC_DDELAY:-$((DMIN * 60))}; DRETRY=${HC_DRETRY:-300}; DTRIES=${HC_DTRIES:-24}
+if [ -f "$MODDIR/common/radio.sh" ]; then . "$MODDIR/common/radio.sh"; else DATA=0; radio_off() { :; }; radio_restore() { :; }; data_off() { :; }; data_restore() { :; }; fi
 case "$GCGB" in ''|*[!0-9]*) GCGB=4 ;; esac
 [ "$GCGB" -ge 1 ] && [ "$GCGB" -le 15 ] || GCGB=4
 GCDELAY=${HC_GCDELAY:-600}; GCRETRY=${HC_GCRETRY:-300}; GCTRIES=${HC_GCTRIES:-12}
@@ -45,6 +52,8 @@ wr() {
   [ -n "$_m" ] && chmod "$_m" "$1" 2>/dev/null
   return $_r
 }
+# node already in $SAVE: a value that could not be put back at screen-on is still the original
+saved_has() { [ -s "$SAVE" ] && awk -F'|' -v n="$1" '$1 == n { f = 1 } END { exit !f }' "$SAVE"; }
 # save the value to put back (default: the current one), then write the screen-off value
 # the original is only recorded when the write worked: a rejected write changes nothing
 put() {
@@ -53,7 +62,7 @@ put() {
   [ -n "$_cv" ] || return 1
   [ "$_cv" = "$2" ] && return 0
   wr "$1" "$2" || return 1
-  printf '%s|%s\n' "$1" "${3:-$_cv}" >> "$SAVE"
+  saved_has "$1" || printf '%s|%s\n' "$1" "${3:-$_cv}" >> "$SAVE"
   return 0
 }
 # highest frequency <= $2 in the policy table $1 (or $2 itself)
@@ -77,12 +86,18 @@ little_policy() {
 }
 
 apply_off() {
-  : > "$SAVE"
+  # entries left by a failed restore stay: they hold the real values to put back
+  [ -e "$SAVE" ] || : > "$SAVE"
   _al=""
+  _np=0
+  for _p in /sys/devices/system/cpu/cpufreq/policy*; do
+    [ -d "$_p" ] && _np=$((_np + 1))
+  done
   _lp=$(little_policy)
   for _p in /sys/devices/system/cpu/cpufreq/policy*; do
     _m=$(cat "$_p/cpuinfo_max_freq" 2>/dev/null); [ -n "$_m" ] || continue
-    [ "$_p" = "$_lp" ] && continue
+    # a single-policy kernel has no separate little cluster to skip
+    [ "$_np" -gt 1 ] && [ "$_p" = "$_lp" ] && continue
     _s=$(snap "$_p" $((_m * PCT / 100)))
     # put back the Big-core cap or the full range: scaling_max_freq reads the limit after thermal,
     # so the value read now may be a temporary thermal limit
@@ -154,12 +169,15 @@ wifi_check() {
     return 0
   fi
   svc wifi enable </dev/null >/dev/null 2>&1
+  # Android 13+ may ignore the legacy svc wrapper; use the Wi-Fi shell command too
+  sleep 1
+  [ "$(wifi_now)" = on ] || cmd wifi set-wifi-enabled enabled </dev/null >/dev/null 2>&1
   # every attempt counts for the limiter, even when the radio takes longer than 1 s to come up;
   # wait up to 5 s only to report a successful re-enable in the status
   _wi=0
   while [ "$_wi" -lt 5 ]; do
-    sleep 1
     [ "$(wifi_now)" = on ] && break
+    sleep 1
     _wi=$((_wi + 1))
   done
   _wrec="$_wk $_wn"
@@ -207,8 +225,12 @@ jobs_stop() {
 }
 
 restore() {
+  if [ "$HC_SOFF_LIB_OK" = 1 ]; then
+    hc_soff_restore "$SAVE"
+    return
+  fi
   [ -s "$SAVE" ] || return 0
-  # what could not be put back stays in the file and is tried again later
+  # fallback for an old install that has not copied soff_restore.sh yet
   _fail=""
   while IFS='|' read -r _n _v; do
     [ -n "$_n" ] || continue
@@ -222,10 +244,11 @@ restore() {
   fi
 }
 
-trap 'jobs_stop; restore; radio_restore; ev_stop; rm -f "$PIDF"; exit 0' TERM INT HUP
+trap 'jobs_stop; restore; radio_restore; data_restore; ev_stop; rm -f "$PIDF"; exit 0' TERM INT HUP
 # values left by a keeper that was killed while the screen was off
 restore
 radio_restore
+data_restore
 gcf_restore restart
 dxa_stop restart
 : >> "$SAVE"
@@ -236,9 +259,11 @@ ev_start "$HC_DATA/soff_watch.fifo"
 [ "$WIFI" = 1 ] && ipm_start
 
 _csince=0; _cdone=1; _clast=0; _cruns=0
-_rsince=0; _rdone=1; _rcnt=0; _rlast=""
+_rsince=0; _rdone=1; _rtries=0; _rnext=0; _rcnt=0; _rlast=""
+_dnext=0; _ddone=1; _dtries=0; _dcnt=0; _dlast=""; _dseen=0
 _gnext=0; _gdone=1; _gtries=0; _gcnt=0; _glast=""
 _xnext=0; _xdone=1; _xtries=0; _xcnt=0; _xlast=""
+_pnext=0
 _on=1; _offs=0; _scr=on; _since=$(date '+%H:%M:%S'); _fd=""
 # feed: events = screen_toggled seen, events-wait = logcat runs but no event yet, polling = backlight
 feed_now() {
@@ -247,7 +272,7 @@ feed_now() {
 note() {
   [ -n "$1" ] && { _scr=$1; _since=$(date '+%H:%M:%S'); }
   feed_now; _fd=$_fn
-  echo "screen=$_scr since=$_since changed=$(grep -c . "$SAVE") offs=$_offs feed=$_fd$([ "$SCR_BLBAD" = 1 ] && echo " backlight=ignored")${_al:+ last_off_caps=$_al}$([ "$WIFI" = 1 ] && echo " wifi_on=$_wcnt${_wlast:+ wifi_last=$_wlast}${_wpause:+ wifi_pauses=$_wpause}")$([ "$RADIO" = 1 ] && echo " radio_off=$_rcnt${_rlast:+ radio_last=$_rlast}")$([ "$GCF" = 1 ] && echo " gc_runs=$_gcnt${_glast:+ gc_last=$_glast}")$([ "$DXF" = 1 ] && echo " dex_runs=$_xcnt${_xlast:+ dex_last=$_xlast}")" > "$STATE"
+  echo "screen=$_scr since=$_since changed=$(grep -c . "$SAVE") offs=$_offs feed=$_fd$([ "$SCR_BLBAD" = 1 ] && echo " backlight=ignored")${_al:+ last_off_caps=$_al}$([ "$WIFI" = 1 ] && echo " wifi_on=$_wcnt${_wlast:+ wifi_last=$_wlast}${_wpause:+ wifi_pauses=$_wpause}")$([ "$RADIO" = 1 ] && echo " radio_off=$_rcnt${_rlast:+ radio_last=$_rlast}")$([ "$DATA" = 1 ] && echo " data_off=$_dcnt${_dlast:+ data_last=$_dlast}")$([ "$GCF" = 1 ] && echo " gc_runs=$_gcnt${_glast:+ gc_last=$_glast}")$([ "$DXF" = 1 ] && echo " dex_runs=$_xcnt${_xlast:+ dex_last=$_xlast}")" > "$STATE"
 }
 note on
 while :; do
@@ -257,15 +282,25 @@ while :; do
   if scr_off; then
     if [ "$_on" = 1 ]; then
       _on=0; _offs=$((_offs + 1))
-      [ "$PROF" = 1 ] && apply_off
+      [ "$PROF" = 1 ] && { apply_off; _pnext=$(( $(date +%s) + 60 )); }
       [ "$WIFI" = 1 ] && { [ "$(wifi_now)" = on ] && _want=on || _want=off; }
       [ "$COMPACT" = 1 ] && { _csince=$(date +%s); _cdone=0; }
-      [ "$RADIO" = 1 ] && { _rsince=$(date +%s); _rdone=0; }
+      [ "$RADIO" = 1 ] && { _rsince=$(date +%s); _rdone=0; _rtries=0; _rnext=$((_rsince + RDELAY)); }
+      [ "$DATA" = 1 ] && { _dnext=$(( $(date +%s) + DDELAY )); _ddone=0; _dtries=0; _dseen=0; }
       [ "$GCF" = 1 ] && { _gnext=$(( $(date +%s) + GCDELAY )); _gdone=0; _gtries=0; }
       [ "$DXF" = 1 ] && { _xnext=$(( $(date +%s) + DXDELAY )); _xdone=0; _xtries=0; }
       note off
     elif [ "$WIFI" = 1 ]; then
       wifi_tick
+    fi
+    # ROM power/perf services can raise the limits again after the screen-off transition.
+    # Re-check at most once a minute; put() only writes a node that actually changed.
+    if [ "$PROF" = 1 ]; then
+      _pn=$(date +%s)
+      if [ "$_pn" -ge "$_pnext" ]; then
+        apply_off
+        _pnext=$((_pn + 60))
+      fi
     fi
     _ew=60
     if [ "$COMPACT" = 1 ] && [ "$_cdone" = 0 ]; then
@@ -283,14 +318,41 @@ while :; do
       fi
     fi
     if [ "$RADIO" = 1 ] && [ "$_rdone" = 0 ]; then
-      _rn=$(date +%s); _rel=$((_rn - _rsince))
-      if [ "$_rel" -ge "$RDELAY" ]; then
-        _rdone=1
-        radio_off "$RBT"
+      _rn=$(date +%s)
+      if [ "$_rn" -ge "$_rnext" ]; then
+        radio_off "$RBT"; _rr=$?
+        # location/Bluetooth still on after the switch: look again in 5 min,
+        # give up for this screen-off period after 12 tries
+        if [ "$_rr" = 2 ]; then
+          _rtries=$((_rtries + 1))
+          if [ "$_rtries" -ge "$RTRIES" ]; then _rdone=1; else _rnext=$((_rn + RRETRY)); fi
+        else
+          _rdone=1
+        fi
         if [ -s "$RSAVE" ]; then _rcnt=$((_rcnt + 1)); _rlast=$(date '+%H:%M:%S'); fi
         note ""
-      else
-        _rw=$((RDELAY - _rel)); [ "$_rw" -lt "$_ew" ] && _ew=$_rw
+      fi
+      if [ "$_rdone" = 0 ]; then
+        _rw=$((_rnext - _rn)); [ "$_rw" -lt 1 ] && _rw=1
+        [ "$_rw" -lt "$_ew" ] && _ew=$_rw
+      fi
+    fi
+    if [ "$DATA" = 1 ] && [ "$_ddone" = 0 ]; then
+      _dkn=$(date +%s)
+      if [ "$_dkn" -ge "$_dnext" ]; then
+        data_off "$DMOB" "$DNFC"; _dkr=$?
+        # mobile data busy (call, audio, tethering): look again in 5 min, give up for this screen-off period after 24 tries
+        if [ "$_dkr" = 2 ]; then
+          _dtries=$((_dtries + 1))
+          if [ "$_dtries" -ge "$DTRIES" ]; then _ddone=1; else _dnext=$((_dkn + DRETRY)); fi
+        else
+          _ddone=1
+        fi
+        if [ -s "$DSAVE" ] && [ "$_dseen" = 0 ]; then _dseen=1; _dcnt=$((_dcnt + 1)); _dlast=$(date '+%H:%M:%S'); note ""; fi
+      fi
+      if [ "$_ddone" = 0 ]; then
+        _dkw=$((_dnext - _dkn)); [ "$_dkw" -lt 1 ] && _dkw=1
+        [ "$_dkw" -lt "$_ew" ] && _ew=$_dkw
       fi
     fi
     if [ "$GCF" = 1 ] && [ "$_gdone" = 0 ]; then
@@ -349,6 +411,7 @@ while :; do
       dxa_stop screen
       restore
       radio_restore
+      data_restore
       note on
     fi
     ev_wait 60 3
@@ -357,6 +420,7 @@ done
 jobs_stop
 restore
 radio_restore
+data_restore
 ev_stop
 rm -f "$PIDF"
 exit 0
