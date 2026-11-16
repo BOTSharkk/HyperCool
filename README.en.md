@@ -129,6 +129,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Wi-Fi/BT scanning off, limit background location, network standby saving
 - App Standby, less stats, telemetry off
 - Disable analytics & ad packages, Joyose off, less logging
+- Mobile data and NFC off after a longer screen-off, back on when the screen turns on (off by default)
 
 **Long battery**
 - Stronger Battery Saver, auto saver level
@@ -150,6 +151,11 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Auto clean app cache (every 1 to 7 days), apps that keep their cache, cache clean notification
 - Optimize apps (dex2oat) for all apps with live progress (Extras tab, on demand)
 - Boot notification when everything is applied
+
+**Tools**
+- Mono theme (neutral black and white look, system font, rounded cards and lists)
+- Dark / AMOLED / accent colours, blurred top bar
+- Backup, restore, import settings, boot log, bug report, revert now, restart
 
 **Home**
 - Search: find any feature by name and jump to it
