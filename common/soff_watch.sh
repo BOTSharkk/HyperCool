@@ -16,6 +16,7 @@ STATE=$HC_DATA/soff_watch.state
 SAVE=$HC_DATA/soff_watch.save
 HC_SOFF_LIB_OK=0
 [ -f "$MODDIR/common/soff_restore.sh" ] && . "$MODDIR/common/soff_restore.sh" && HC_SOFF_LIB_OK=1
+[ -f "$MODDIR/common/klog.sh" ] && . "$MODDIR/common/klog.sh" || { klog() { :; }; kstop() { :; }; }
 
 case "$PCT" in ''|*[!0-9]*) exit 1 ;; esac
 case "$CAP" in ''|*[!0-9]*) CAP=0 ;; esac
@@ -166,6 +167,7 @@ wifi_check() {
   done
   if [ "$_wc" -ge 3 ]; then
     _whold=$((_wn + 300)); _wrec=""; _wpause=$((${_wpause:-0} + 1)); note ""
+    klog screen-off "Wi-Fi keep paused" "the ROM switched it off 3 times in 10 min, pausing 5 min"
     return 0
   fi
   svc wifi enable </dev/null >/dev/null 2>&1
@@ -183,6 +185,9 @@ wifi_check() {
   _wrec="$_wk $_wn"
   if [ "$_wi" -lt 5 ]; then
     _wcnt=$((_wcnt + 1)); _wlast=$(date '+%H:%M:%S')
+    klog screen-off "Wi-Fi back on" "the ROM had switched it off"
+  else
+    klog screen-off "Wi-Fi did not come back" "still off after 5 s"
   fi
   note ""
 }
@@ -212,6 +217,38 @@ ipm_start() {
     done ) >/dev/null 2>&1 &
 }
 _cj=""; _gj=""
+# number of lines in a file, 0 when it is missing or empty (safe inside $(( )))
+lines() { _ln=$(grep -c . "$1" 2>/dev/null); echo "${_ln:-0}"; }
+# battery level and charging state, for the drain of each screen-off period
+BATP=/sys/class/power_supply/battery
+bat_lv() { _bl=$(cat "$BATP/capacity" 2>/dev/null); case "$_bl" in ''|*[!0-9]*) echo "" ;; *) echo "$_bl" ;; esac; }
+# on the charger counts too: with the 80% charge limit the status is "Not charging" while plugged in
+bat_chg() {
+  case "$(cat "$BATP/status" 2>/dev/null)" in Charging|Full) return 0 ;; esac
+  for _bo in /sys/class/power_supply/usb/online /sys/class/power_supply/ac/online \
+             /sys/class/power_supply/wireless/online /sys/class/power_supply/dc/online; do
+    [ "$(cat "$_bo" 2>/dev/null)" = 1 ] && return 0
+  done
+  return 1
+}
+_lv0=""; _chg0=0
+# one line for a screen-off period of 30 min or more without charging: % lost and % per hour
+drain_note() {
+  _dl1=$(bat_lv); _dsec=$(( $(date +%s) - _toff ))
+  [ -n "$_lv0" ] && [ -n "$_dl1" ] && [ "$_chg0" = 0 ] && [ "$_dsec" -ge "${HC_DRAIN_MIN:-1800}" ] || return 0
+  bat_chg && return 0
+  # the level went up: it was charged in between
+  [ "$_dl1" -le "$_lv0" ] || return 0
+  _dd=$((_lv0 - _dl1))
+  _dh=$(awk -v s="$_dsec" 'BEGIN { printf "%.1f", s / 3600 }')
+  if [ "$_dd" -gt 0 ]; then
+    _dr=$(awk -v d="$_dd" -v s="$_dsec" 'BEGIN { printf "%.2f", d * 3600 / s }')
+    klog drain "Screen-off drain ${_dr}%/h" "${_dh} h screen off: ${_lv0}% to ${_dl1}% (${_dd}% lost)"
+  else
+    _dr=$(awk -v s="$_dsec" 'BEGIN { printf "%.2f", 3600 / s }')
+    klog drain "Screen-off drain <${_dr}%/h" "${_dh} h screen off: still ${_dl1}% (less than 1% lost)"
+  fi
+}
 # a job that already ended may have had its pid reused: only kill a process that is still this keeper's child
 job_kill() { [ -n "$1" ] && grep -q soff_watch "/proc/$1/cmdline" 2>/dev/null && kill "$1" 2>/dev/null; return 0; }
 jobs_stop() {
@@ -264,7 +301,7 @@ _dnext=0; _ddone=1; _dtries=0; _dcnt=0; _dlast=""; _dseen=0
 _gnext=0; _gdone=1; _gtries=0; _gcnt=0; _glast=""
 _xnext=0; _xdone=1; _xtries=0; _xcnt=0; _xlast=""
 _pnext=0
-_on=1; _offs=0; _scr=on; _since=$(date '+%H:%M:%S'); _fd=""
+_on=1; _offs=0; _scr=on; _since=$(date '+%H:%M:%S'); _fd=""; _toff=0
 # feed: events = screen_toggled seen, events-wait = logcat runs but no event yet, polling = backlight
 feed_now() {
   if [ "$EV" != 1 ]; then _fn=polling; elif [ -n "$EV_VAL" ]; then _fn=events; else _fn=events-wait; fi
@@ -276,12 +313,13 @@ note() {
 }
 note on
 while :; do
-  [ -f "$MODDIR/disable" ] || [ -f "$MODDIR/remove" ] || [ ! -d "$MODDIR" ] && break
+  [ -f "$MODDIR/disable" ] || [ -f "$MODDIR/remove" ] || [ ! -d "$MODDIR" ] && { _why="module disabled or removed"; break; }
   feed_now; [ "$_fn" != "$_fd" ] && note ""
   [ "$SCR_BLBAD" != "${_bb:-0}" ] && { _bb=$SCR_BLBAD; note ""; }
   if scr_off; then
     if [ "$_on" = 1 ]; then
-      _on=0; _offs=$((_offs + 1))
+      _on=0; _offs=$((_offs + 1)); _toff=$(date +%s)
+      _lv0=$(bat_lv); if bat_chg; then _chg0=1; else _chg0=0; fi
       [ "$PROF" = 1 ] && { apply_off; _pnext=$(( $(date +%s) + 60 )); }
       [ "$WIFI" = 1 ] && { [ "$(wifi_now)" = on ] && _want=on || _want=off; }
       [ "$COMPACT" = 1 ] && { _csince=$(date +%s); _cdone=0; }
@@ -310,7 +348,7 @@ while :; do
         # once per screen-off period, at most every CCOOL s, only when free RAM is low
         if [ $((_cn - _clast)) -ge "$CCOOL" ] && compact_low_ram; then
           _clast=$_cn; _cruns=$((_cruns + 1))
-          ( compact_run ) >/dev/null 2>&1 &
+          ( compact_run; klog screen-off "App compaction (auto)" "$(sed -n 's/.*apps=\([0-9]*\) failed=\([0-9]*\).*/\1 apps compacted, \2 failed/p' "$CSTATE" 2>/dev/null)" ) >/dev/null 2>&1 &
           _cj=$!
         fi
       else
@@ -330,6 +368,12 @@ while :; do
           _rdone=1
         fi
         if [ -s "$RSAVE" ]; then _rcnt=$((_rcnt + 1)); _rlast=$(date '+%H:%M:%S'); fi
+        if [ "$_rr" = 2 ]; then
+          [ "$_rdone" = 1 ] && klog screen-off "Location/Bluetooth off" "still on after $RTRIES tries, gave up until the next screen-off" ||
+            { [ "$_rtries" = 1 ] && klog screen-off "Location/Bluetooth off" "still on, trying again every $((RRETRY / 60)) min"; }
+        elif [ -s "$RSAVE" ]; then
+          klog screen-off "Location/Bluetooth off" "done ($(cut -d'|' -f1 "$RSAVE" | tr '\n' ' ' | sed 's/ *$//'))"
+        fi
         note ""
       fi
       if [ "$_rdone" = 0 ]; then
@@ -344,11 +388,13 @@ while :; do
         # mobile data busy (call, audio, tethering): look again in 5 min, give up for this screen-off period after 24 tries
         if [ "$_dkr" = 2 ]; then
           _dtries=$((_dtries + 1))
+          [ "$_dtries" = 1 ] && klog screen-off "Mobile data off" "waiting: call, audio or hotspot in use"
           if [ "$_dtries" -ge "$DTRIES" ]; then _ddone=1; else _dnext=$((_dkn + DRETRY)); fi
         else
           _ddone=1
         fi
-        if [ -s "$DSAVE" ] && [ "$_dseen" = 0 ]; then _dseen=1; _dcnt=$((_dcnt + 1)); _dlast=$(date '+%H:%M:%S'); note ""; fi
+        if [ -s "$DSAVE" ] && [ "$_dseen" = 0 ]; then _dseen=1; _dcnt=$((_dcnt + 1)); _dlast=$(date '+%H:%M:%S'); note ""
+          klog screen-off "Mobile data/NFC off" "done ($(cut -d'|' -f1 "$DSAVE" | tr '\n' ' ' | sed 's/ *$//'))"; fi
       fi
       if [ "$_ddone" = 0 ]; then
         _dkw=$((_dnext - _dkn)); [ "$_dkw" -lt 1 ] && _dkw=1
@@ -402,6 +448,7 @@ while :; do
   else
     if [ "$_on" = 0 ]; then
       _on=1
+      drain_note
       # the screen is on: do not keep any intent to turn Wi-Fi back on
       [ "$WIFI" = 1 ] && _want=off
       # a compaction still running stops with the screen-off period
@@ -409,10 +456,22 @@ while :; do
       job_kill "$_gj"; _gj=""
       gcf_restore screen-on
       dxa_stop screen
+      _rb=$(lines "$SAVE"); _rrb=$(lines "$RSAVE"); _drb=$(lines "$DSAVE")
       restore
       radio_restore
       data_restore
       note on
+      # one line per screen-off period, and only when something was switched (no line for a plain on/off)
+      _kl=$((_rb + _rrb + _drb))
+      if [ "$_kl" -gt 0 ]; then
+        _kleft=$(( $(lines "$SAVE") + $(lines "$RSAVE") + $(lines "$DSAVE") ))
+        _km=$(( $(date +%s) - _toff )); if [ "$_km" -lt 90 ]; then _km="$_km s"; else _km="$(( (_km + 30) / 60 )) min"; fi
+        if [ "$_kleft" -gt 0 ]; then
+          klog screen-off "Screen on, values put back" "$_kleft of $_kl not accepted yet, tried again at the next screen-on (off for $_km)"
+        else
+          klog screen-off "Screen on, values put back" "all $_kl back (off for $_km)"
+        fi
+      fi
     fi
     ev_wait 60 3
   fi
@@ -423,4 +482,5 @@ radio_restore
 data_restore
 ev_stop
 rm -f "$PIDF"
+kstop screen-off "${_why:-stopped}, values put back"
 exit 0

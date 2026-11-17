@@ -7,6 +7,7 @@ HC_DATA=/data/adb/hypercool
 MODDIR=/data/adb/modules/hypercool
 PIDF=$HC_DATA/chg_watch.pid
 STATE=$HC_DATA/chg_watch.state
+[ -f "$MODDIR/common/klog.sh" ] && . "$MODDIR/common/klog.sh" || { klog() { :; }; kstop() { :; }; }
 
 [ -n "$NC" ] && [ -e "$NC" ] || exit 1
 # one instance only
@@ -37,6 +38,7 @@ while :; do
     if { echo 1 > "$NC"; } 2>/dev/null; then
       _n=$((_n + 1))
       echo "set=$_n last=$(date '+%Y-%m-%d %H:%M:%S')" > "$STATE"
+      klog charge "80% limit set again" "charger plugged in, the limit had been cleared"
     fi
   fi
   sleep 15
@@ -44,4 +46,5 @@ done
 rm -f "$PIDF"
 # module disabled/removed: do not leave the 80% cap stuck on
 [ -f "$MODDIR/disable" ] || [ -f "$MODDIR/remove" ] || [ ! -d "$MODDIR" ] && { echo 0 > "$NC"; } 2>/dev/null
+kstop charge "module disabled or removed, 80% limit released"
 exit 0

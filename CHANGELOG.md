@@ -1,6 +1,36 @@
 # Changelog
 
-> Current build: **v2.3.2 (232)**.
+> Current build: **v2.3.5 (235)**.
+
+## v2.3.5 (235)
+
+- New: Keeper status on Home: a tap-to-open table with every background keeper, its Running / Off / Not running / Skipped / Failed state, pid, detail and last event.
+- New: Show all activity view with All, Keepers, Manual and Idle drain filters. The 3 newest events stay on Home, and high drain or failed work is coloured.
+- New: The activity log keeps the last 50 events (was 30) and now includes the boot result with the features that failed or were partial, saved setting changes, and Revert and restore actions.
+- New: Screen-off drain is recorded for each screen-off period of at least 30 minutes, and daily idle drain history comes from Android's battery stats.
+- Changed: Keepers record why they stopped; the guard records restores when the module is disabled; stop events are skipped during reboot and shutdown to keep the log clean.
+- Changed: The heat guard records a late application once, notes why it stopped, and no longer writes a cool-down line for a hot period that lowered nothing.
+
+## v2.3.4 (234)
+
+- New: Heat guard (experimental, off by default) lowers the big-core CPU cap and the refresh rate while the battery is hot, then restores both after cool-down. Applied limits are also put back when the keeper stops, on reboot, when the module is disabled, or on uninstall.
+- New: `rr_hold` (1–5 s, default 2 s) replaces the fixed 2 s idle delay of the touch refresh keeper.
+- New: Recent activity on Home lists keeper actions, including CPU cap, charge limit, cache clean, calibration, screen-off, F2FS, dex2oat, and manual cache/RAM actions. It refreshes automatically when Home opens or becomes visible again, and the manual Refresh button is gone.
+- Changed: the existing tuning lists now include scheduler RT clamp, quiet-kernel entries, RAM compaction and page-cluster, more props, an extra GMS freeze component, and four more Dropbox tags. WebUI descriptions list the new entries.
+- Changed: `joyose_off` moved to the experimental risk group.
+- Fixed: invalid battery temperatures such as `-`, `--`, and `1-2` are rejected, so a hot CPU cap is not kept when the temperature cannot be read.
+- Fixed: with Adaptive refresh rate on, the heat guard also lowers `min_refresh_rate` when it is above the heat cap and restores it after cool-down.
+- Fixed: WebUI no longer downgrades `cfg_ver` when loading or importing a config from a newer build.
+- Fixed: "Battery hot" is logged only when a limit was actually lowered, and the cool-down log no longer ends with an empty detail.
+- Fixed: Wi-Fi pause and failure logs use titles that match the event, and module status only reports "heat guard running" when the keeper is applied or partial.
+
+## v2.3.3 (233)
+
+- Changed: battery-tuned defaults for 12 numeric inputs (cpu_cap 95 to 88, gpu_idle_timer 64 to 20, walt_hispeed_load 95 to 99, walt_up_rate 1000 to 5000, bg_uclamp 30 to 25, soff_cpu 60 to 30, soff_radio_min 15 to 5, soff_data_min 10 to 5, vm_writeback 3000 to 6000, vm_stat_interval 10 to 60, vm_dirty_bg 10 to 20, vm_dirty 30 to 40). Feature switches and levels are unchanged.
+- New: adaptive refresh rate uses the panel's highest Hz while active and lowest Hz while idle (1 Hz on LTPO), with manual overrides and a 90/30 fallback.
+- Changed: updating the module applies the new battery defaults only where the value is still the old default, so user changes are kept (cfg_ver 4).
+- Fixed: Location restore returns the saved location_mode even when Location is already on, and the Wi-Fi scan-off and Doze writes are verified by reading them back.
+- WebUI: Source code link added after Telegram, and the soff_radio and scan_off descriptions match the module.
 
 ## v2.3.2 (232)
 

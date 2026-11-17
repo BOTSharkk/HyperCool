@@ -204,10 +204,14 @@ fi
 # ---------- screen-off profile keeper (after everything else, so it saves the final values) ----------
 f_soff_prof
 
+# ---------- heat guard keeper (experimental) ----------
+f_heat_guard
+
 # ---------- bookkeeping ----------
 cp -f "$HC_BOOTCFG" "$HC_DATA/last_applied.conf"
 cp -f "$MODDIR/common/restore.sh" "$HC_DATA/restore.sh"
 cp -f "$MODDIR/common/radio.sh" "$HC_DATA/radio.sh"
+cp -f "$MODDIR/common/heat_watch.sh" "$HC_DATA/heat_watch.sh"
 cp -f "$MODDIR/common/soff_restore.sh" "$HC_DATA/soff_restore.sh"
 mkdir -p /data/adb/service.d
 cp -f "$MODDIR/common/hc_guard.sh" /data/adb/service.d/.hypercool_guard.sh && chmod 0755 /data/adb/service.d/.hypercool_guard.sh
@@ -222,7 +226,20 @@ _f=$(grep -c '=failed|' "$HC_STATUS")
 _o=$(grep -c '=off|' "$HC_STATUS")
 log "done: $_a applied, $_p partial, $_s skipped, $_f failed, $_o off"
 
-_desc="Heat and battery fix for Android - $(hc_soc_label) (one-shot at boot$(on charge_limit && echo ", charge-limit keeper running")$({ on soff_prof || on wifi_keep || on x_compact || on soff_radio || on soff_data || on f2fs_gc || on x_dexopt_auto; } && echo ", screen-off keeper running")). Last boot: $_a applied, $_p partial, $_s unsupported, $_f failed, $_o off. Configure in WebUI. Telegram Channel: @ModuleArchives."
+# one line in the activity log per boot; the WebUI shows the feature names behind the keys
+if [ -f "$MODDIR/common/klog.sh" ]; then
+  . "$MODDIR/common/klog.sh"
+  _bk() { grep "=$1|" "$HC_STATUS" 2>/dev/null | cut -d= -f1 | tr '\n' ',' | sed 's/,$//; s/,/, /g'; }
+  _bd=""
+  [ "$_f" -gt 0 ] && _bd="failed: $(_bk failed)"
+  [ "$_p" -gt 0 ] && _bd="${_bd:+$_bd; }partial: $(_bk partial)"
+  [ "$_s" -gt 0 ] && _bd="${_bd:+$_bd; }skipped: $(_bk skipped)"
+  klog boot "Boot: $_a applied, $_p partial, $_f failed" "${_bd:-everything that is on was applied}"
+fi
+
+_hgst=$(sed -n 's/^heat_guard=//p' "$HC_STATUS" 2>/dev/null | tail -n 1)
+case "$_hgst" in applied*|partial*) _hgrun=", heat guard running" ;; *) _hgrun="" ;; esac
+_desc="Heat and battery fix for Android - $(hc_soc_label) (one-shot at boot$(on charge_limit && echo ", charge-limit keeper running")${_hgrun}$({ on soff_prof || on wifi_keep || on x_compact || on soff_radio || on soff_data || on f2fs_gc || on x_dexopt_auto; } && echo ", screen-off keeper running")). Last boot: $_a applied, $_p partial, $_s unsupported, $_f failed, $_o off. Configure in WebUI. Telegram Channel: @ModuleArchives."
 sed -i "s#^description=.*#description=$_desc#" "$MODDIR/module.prop"
 
 # ---------- boot notification ----------

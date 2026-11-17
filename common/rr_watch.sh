@@ -13,6 +13,7 @@ ACT=$1; IDL=$2; HOLD=${3:-1}; MIUI=${4:-0}
 PIDF=$HC_DATA/rr_watch.pid
 F1=$HC_DATA/rr_watch.raw
 F2=$HC_DATA/rr_watch.fifo
+[ -f "$MODDIR/common/klog.sh" ] && . "$MODDIR/common/klog.sh" || { klog() { :; }; kstop() { :; }; }
 
 _old=$(cat "$PIDF" 2>/dev/null)
 case "$_old" in ''|*[!0-9]*) ;; *)
@@ -29,28 +30,37 @@ _hz_now() { # -> the peak rate that is really set right now (Hz, without decimal
   case "$_hz" in ''|*[!0-9]*) return 1 ;; esac
   echo "$_hz"
 }
+# put <Hz> [raw]: raw = no Heat guard cap (used when the keeper stops, so Heat guard records the real value)
 put() {
-  [ "$CUR" = "$1" ] && return 0
-  cmd settings put system peak_refresh_rate "$1.0" </dev/null >/dev/null 2>&1 ||
-    settings put system peak_refresh_rate "$1.0" </dev/null >/dev/null 2>&1
+  _pv=$1
+  # Heat guard: while the battery is hot every rate is capped at its value
+  _hg=$(cat "$HC_DATA/heat.rr" 2>/dev/null)
+  [ "$2" = raw ] && _hg=""
+  case "$_hg" in ''|*[!0-9]*) ;; *) [ "$_pv" -gt "$_hg" ] && _pv=$_hg ;; esac
+  [ "$CUR" = "$_pv" ] && return 0
+  cmd settings put system peak_refresh_rate "$_pv.0" </dev/null >/dev/null 2>&1 ||
+    settings put system peak_refresh_rate "$_pv.0" </dev/null >/dev/null 2>&1
   _ok=0
-  [ "$(_hz_now)" = "$1" ] && _ok=1
+  [ "$(_hz_now)" = "$_pv" ] && _ok=1
   if [ "$MIUI" = 1 ] && [ "$_ok" = 1 ]; then
-    cmd settings put secure miui_refresh_rate "$1" </dev/null >/dev/null 2>&1 ||
-      settings put secure miui_refresh_rate "$1" </dev/null >/dev/null 2>&1
-    [ "$(settings get secure miui_refresh_rate 2>/dev/null)" = "$1" ] || _ok=0
+    cmd settings put secure miui_refresh_rate "$_pv" </dev/null >/dev/null 2>&1 ||
+      settings put secure miui_refresh_rate "$_pv" </dev/null >/dev/null 2>&1
+    [ "$(settings get secure miui_refresh_rate 2>/dev/null)" = "$_pv" ] || _ok=0
   fi
   [ "$_ok" = 1 ] || return 1
-  CUR=$1
+  CUR=$_pv
   return 0
 }
 PIDS=""
+WHY=""
 stop() {
+  # why it stopped by itself (empty = asked to stop by a signal)
+  [ -n "$WHY" ] && kstop refresh "$WHY, back to the normal rate range"
   # shellcheck disable=SC2086
   [ -n "$PIDS" ] && kill $PIDS 2>/dev/null
   rm -f "$F1" "$F2"
   # back to the normal adaptive range (the boot apply or the restore takes it from here)
-  put "$ACT" || { sleep 1; put "$ACT"; }
+  put "$ACT" raw || { sleep 1; put "$ACT" raw; }
   [ "$(cat "$PIDF" 2>/dev/null)" = "$$" ] && rm -f "$PIDF"
   exit 0
 }
@@ -58,10 +68,10 @@ trap stop TERM INT HUP
 
 # input devices with a touchscreen or keys (power / volume); getevent watches only those
 DEVS=$(getevent -pl 2>/dev/null | awk '/^add device/ { d = $NF } /BTN_TOUCH|ABS_MT_POSITION_X|KEY_POWER|KEY_VOLUMEDOWN/ { if (d != "" && !(d in s)) { s[d] = 1; print d } }')
-[ -n "$DEVS" ] || { echo "no touch / key input device" > "$HC_DATA/rr_watch.state"; rm -f "$PIDF"; exit 1; }
+[ -n "$DEVS" ] || { echo "no touch / key input device" > "$HC_DATA/rr_watch.state"; rm -f "$PIDF"; klog refresh "Not started" "no touch or key input device found (getevent)"; exit 1; }
 
 rm -f "$F1" "$F2"
-mkfifo "$F1" "$F2" || { rm -f "$PIDF"; exit 1; }
+mkfifo "$F1" "$F2" || { rm -f "$PIDF"; klog refresh "Not started" "could not create its event pipe in $HC_DATA"; exit 1; }
 exec 3<>"$F2"
 GPID=""
 if echo BTN_TOUCH | grep --line-buffered -qE 'BTN_TOUCH' 2>/dev/null; then
@@ -101,13 +111,13 @@ while :; do
   fi
   # timeout: no touch for <hold s> -> idle rate
   [ "$down" = 0 ] && put "$IDL"
-  [ -f "$MODDIR/disable" ] || [ -f "$MODDIR/remove" ] || [ ! -d "$MODDIR" ] && stop
-  grep -q '^rr_adapt=1' "$HC_DATA/config.conf" 2>/dev/null || stop
+  [ -f "$MODDIR/disable" ] || [ -f "$MODDIR/remove" ] || [ ! -d "$MODDIR" ] && { WHY="module disabled or removed"; stop; }
+  grep -q '^rr_adapt=1' "$HC_DATA/config.conf" 2>/dev/null || { WHY="Adaptive refresh rate turned off in the settings"; stop; }
   # the event feed died (all getevent gone): nothing more to watch
   _alive=0
   for _p in $PIDS; do [ -d "/proc/$_p" ] && _alive=1; done
-  [ "$_alive" = 1 ] || stop
+  [ "$_alive" = 1 ] || { WHY="touch events stopped coming (getevent ended)"; stop; }
   # the filter process died: the touch events would no longer come through, so stop instead of
   # keeping a rate that never changes again
-  [ -n "$GPID" ] && { kill -0 "$GPID" 2>/dev/null || stop; }
+  [ -n "$GPID" ] && { kill -0 "$GPID" 2>/dev/null || { WHY="the touch event filter ended"; stop; }; }
 done
