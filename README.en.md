@@ -105,6 +105,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Park prime core (Qualcomm; switches core_ctl on when the kernel has it off, checks that the core is really parked, locks the nodes)
 - CPU keeper: keeps the big/little caps and the prime parking in place when the ROM undoes them
 - Disable UI blur
+- Heat guard (experimental): lowers the big-core cap and refresh rate while the battery is hot, then restores them after cool-down
 - Cooler charging (current limit) and charge limit ~80% (Xiaomi)
 
 **Battery drain (kernel)**
@@ -158,6 +159,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Backup, restore, import settings, boot log, bug report, revert now, restart
 
 **Home**
+- Recent activity and keeper status: keeper states, recent actions and daily idle drain
 - Search: find any feature by name and jump to it
 - Idle drain: battery drop per hour with the screen off since the last unplug (shows after a 1% drop)
 - Battery check: health, capacity, cycle count, temperature and more
