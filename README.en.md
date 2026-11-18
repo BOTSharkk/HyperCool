@@ -154,8 +154,9 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Boot notification when everything is applied
 
 **Tools**
-- Mono theme (neutral black and white look, system font, rounded cards and lists)
-- Dark / AMOLED / accent colours, blurred top bar
+- Mono black-and-white look (the only look), with system or preset accent colours
+- Dark / AMOLED / light / follow system, blurred top bar
+- Tap the unsaved changes count to review every pending change
 - Backup, restore, import settings, boot log, bug report, revert now, restart
 
 **Home**
