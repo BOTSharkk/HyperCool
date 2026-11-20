@@ -59,6 +59,18 @@ RAW_MARKERS = [
     ("$('dirty').textContent", "$('dirty').textContent"),
     ("modal(ch.length", "modal(ch.length"),
     ("txt + ': show the restart bar'", "txt + '：显示重启栏'"),
+    ("var h = '<div class=\"wk-sum\">Counted since you pressed Mark start",
+     "var h = '<div class=\"wk-sum\">自你按下“标记起点”以来"),
+    ("var g = wkGroup(r.name), val =", "var g = wkGroup(r.name), val ="),
+    ("var sub = byTime ?", "var sub = byTime ?"),
+    ("'<div class=\"hint\">Nothing counted'", "'<div class=\"hint\">暂无统计'"),
+    ("No app held a wake lock", "暂无应用持有唤醒锁"),
+    ("var head = kv.base === 'mark' ?", "var head = kv.base === 'mark' ?"),
+    ("var who = wlApp(a.uid, a.pkg), sub =", "var who = wlApp(a.uid, a.pkg), sub ="),
+    ("else sumTxt = (sum > 30 ?", "else sumTxt = (sum > 30 ?"),
+    ("(top && top.tot >= 5 ?", "(top && top.tot >= 5 ?"),
+    ("var core = x.pct >= 95 ?", "var core = x.pct >= 95 ?"),
+    ("x: 'Each time the screen was off for 30 minutes", "x: '熄屏 30 分钟以上"),
 ]
 
 
