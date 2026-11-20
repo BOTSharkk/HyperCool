@@ -130,6 +130,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Wi-Fi/BT scanning off, limit background location, network standby saving
 - App Standby, less stats, telemetry off
 - Disable analytics & ad packages, Joyose off, less logging
+- Screen-off drain check and high-drain notification (off by default)
 - Mobile data and NFC off after a longer screen-off, back on when the screen turns on (off by default)
 
 **Long battery**
@@ -161,6 +162,9 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 
 **Home**
 - Recent activity and keeper status: keeper states, recent actions and daily idle drain
+- Wake sources: kernel wakeup statistics by awake time or wake-ups, with Mark start
+- CPU use now: the busiest processes over a 2-second sample
+- Screen-off drain check: logs 30+ minute screen-off periods, notifies on high drain and names the wake-lock app (off by default)
 - Search: find any feature by name and jump to it
 - Idle drain: battery drop per hour with the screen off since the last unplug (shows after a 1% drop)
 - Battery check: health, capacity, cycle count, temperature and more
