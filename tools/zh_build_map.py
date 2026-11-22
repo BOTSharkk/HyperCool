@@ -71,6 +71,11 @@ RAW_MARKERS = [
     ("(top && top.tot >= 5 ?", "(top && top.tot >= 5 ?"),
     ("var core = x.pct >= 95 ?", "var core = x.pct >= 95 ?"),
     ("x: 'Each time the screen was off for 30 minutes", "x: '熄屏 30 分钟以上"),
+    ("x: 'Stopped apps stay asleep until you open them again", "x: '被停止的应用会一直休眠"),
+    ("(o && o.hours > 0 ? ' ('", "(o && o.hours > 0 ? '（'"),
+    ("modal('What\\'s new in v' + v,", "modal('v' + v + ' 新内容',"),
+    ("var h = '<p><b>' + pk.length + '</b> ' +", "var h = '<p><b>' + pk.length + '</b> ' +"),
+    ("modal('Hibernate ' + pk.length", "modal('休眠 ' + pk.length"),
 ]
 
 
