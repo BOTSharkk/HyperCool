@@ -130,6 +130,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Wi-Fi/BT scanning off, limit background location, network standby saving
 - App Standby, less stats, telemetry off
 - Disable analytics & ad packages, Joyose off, less logging
+- Background app hibernation (off by default): stops background apps a few minutes after screen-off, skipping protected, in-use and charging apps
 - Screen-off drain check and high-drain notification (off by default)
 - Mobile data and NFC off after a longer screen-off, back on when the screen turns on (off by default)
 
@@ -139,7 +140,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Refresh rate cap, adaptive refresh rate (high on touch, low when idle), animation scale
 
 **Extras**
-- Scheduler, network and I/O tuning
+- Scheduler, network (including Faster TCP) and I/O tuning
 - MiGT / Metis off (Xiaomi)
 - Balanced system defaults, common kernel tuning
 - RAM optimizer, multitasking profile
@@ -158,6 +159,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Mono black-and-white look (the only look), with system or preset accent colours
 - Dark / AMOLED / light / follow system, blurred top bar
 - Tap the unsaved changes count to review every pending change
+- HyperCool (Glacier) accent; What's New summary after updates
 - Backup, restore, import settings, boot log, bug report, revert now, restart
 
 **Home**
@@ -165,6 +167,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Wake sources: kernel wakeup statistics by awake time or wake-ups, with Mark start
 - CPU use now: the busiest processes over a 2-second sample
 - Screen-off drain check: logs 30+ minute screen-off periods, notifies on high drain and names the wake-lock app (off by default)
+- Hibernate apps now: stop background apps manually, either Stop the app or Close background processes only
 - Search: find any feature by name and jump to it
 - Idle drain: battery drop per hour with the screen off since the last unplug (shows after a 1% drop)
 - Battery check: health, capacity, cycle count, temperature and more
