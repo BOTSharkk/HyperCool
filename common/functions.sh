@@ -914,67 +914,20 @@ f_soff_prof() {
   fi
 }
 
-# Xiaomi "night charging": the charger stops at ~80% while the flag is set
-hc_watch_pid() {
-  _wp=$(cat "$HC_DATA/chg_watch.pid" 2>/dev/null)
-  case "$_wp" in ''|*[!0-9]*) return 1 ;; esac
-  grep -q chg_watch "/proc/$_wp/cmdline" 2>/dev/null && echo "$_wp"
-}
-hc_watch_stop() {
-  _wp=$(hc_watch_pid) && {
-    kill "$_wp" 2>/dev/null
-    _i=0; while [ "$_i" -lt 6 ] && [ -d "/proc/$_wp" ]; do sleep 1; _i=$((_i + 1)); done
-  }
-  rm -f "$HC_DATA/chg_watch.pid"
-}
-f_charge_limit() {
-  # remember whether HyperCool itself set the flag: the persistent marker below
-  # (written as soon as we set it), the keeper's state, or a running keeper.
-  # The marker matters because the keeper only writes its state on the first
-  # plug-in; without it a reboot before that would leave the 80% cap stuck.
-  _ihad=0
-  [ -f "$HC_DATA/chg_watch.set" ] && _ihad=1
-  [ -f "$HC_DATA/chg_watch.state" ] && _ihad=1
-  hc_watch_pid >/dev/null 2>&1 && _ihad=1
-  hc_watch_stop
-  if ! on charge_limit; then
-    # only release a cap HyperCool set; leave a value set by someone else alone
-    if [ "$_ihad" = 1 ]; then
-      for _n in /sys/class/qcom-battery/night_charging /sys/class/power_supply/battery/night_charging; do
-        [ -e "$_n" ] && { echo 0 > "$_n"; } 2>/dev/null
-      done
-    fi
-    rm -f "$HC_DATA/chg_watch.set" "$HC_DATA/chg_watch.state"
-    st charge_limit off
-    return
+# The "Charge limit ~80%" feature was removed: stop an old keeper and give the night charging
+# flag back, only when HyperCool set it (marker / keeper state) and the battery keeper is not holding it
+f_charge_limit_gone() {
+  _cw=$(cat "$HC_DATA/chg_watch.pid" 2>/dev/null)
+  case "$_cw" in ''|*[!0-9]*) ;; *) grep -q chg_watch "/proc/$_cw/cmdline" 2>/dev/null && { kill "$_cw" 2>/dev/null; sleep 2; } ;; esac
+  if [ -f "$HC_DATA/chg_watch.set" ] || [ -f "$HC_DATA/chg_watch.state" ]; then
+    for _n in /sys/class/qcom-battery/night_charging /sys/class/power_supply/battery/night_charging; do
+      [ -e "$_n" ] || continue
+      grep -q "^$_n|" "$HC_DATA/batp.save" 2>/dev/null && continue
+      { echo 0 > "$_n"; } 2>/dev/null
+    done
   fi
-  cnt_reset
-  _nc=""
-  for _n in /sys/class/qcom-battery/night_charging /sys/class/power_supply/battery/night_charging; do
-    [ -e "$_n" ] && { _nc=$_n; break; }
-  done
-  [ -n "$_nc" ] || { st charge_limit skipped "no night_charging node on this kernel"; return; }
-  # writable at all? (the keeper only re-writes the same value)
-  if ! { echo 1 > "$_nc"; } 2>/dev/null; then
-    chmod 0664 "$_nc" 2>/dev/null
-    { echo 1 > "$_nc"; } 2>/dev/null || { st charge_limit failed "${_nc#/sys/class/} rejected the write"; return; }
-  fi
-  rm -f "$HC_DATA/chg_watch.state"
-  # HyperCool has now set the flag: remember it, so turning the feature off
-  # later releases it even if the keeper never wrote its state (not plugged in)
-  echo "$_nc" > "$HC_DATA/chg_watch.set"
-  if command -v nice >/dev/null 2>&1; then
-    nohup nice -n 19 sh "$MODDIR/common/chg_watch.sh" "$_nc" >/dev/null 2>&1 &
-  else
-    nohup sh "$MODDIR/common/chg_watch.sh" "$_nc" >/dev/null 2>&1 &
-  fi
-  _i=0
-  while [ "$_i" -lt 5 ] && ! hc_watch_pid >/dev/null; do sleep 1; _i=$((_i + 1)); done
-  if _wp=$(hc_watch_pid); then
-    st charge_limit applied "${_nc#/sys/class/}=1 on every plug-in, stops at ~80% (keeper pid $_wp, checks every 15 s)"
-  else
-    st charge_limit failed "keeper did not start; flag only set until the next unplug"
-  fi
+  rm -f "$HC_DATA"/chg_watch.* 2>/dev/null
+  return 0
 }
 
 # The "Hold charge at a set level" feature was removed: put back anything an older version left cut and drop its files
@@ -1922,6 +1875,18 @@ hc_batp_nodes() {
             bypass:/sys/class/power_supply/battery/charge_enabled bypass:/sys/class/power_supply/battery/charge_disable \
             bypass:/sys/class/power_supply/battery_ext/smart_charging_interruption bypass:/sys/class/power_supply/battery/mmi_charging_enable \
             bypass:/sys/class/power_supply/battery/op_disable_charge bypass:/sys/devices/platform/mt-battery/disable_charger \
+            bypass:/sys/class/power_supply/ac/charging_enabled bypass:/sys/class/power_supply/dc/charging_enabled \
+            bypass:/sys/class/power_supply/battery/batt_slate_mode bypass:/sys/class/power_supply/battery/stop_charge \
+            bypass:/sys/class/power_supply/battery/device/Charging_Enable bypass:/sys/class/power_supply/chargalg/disable_charging \
+            bypass:/sys/class/power_supply/bq2589x_charger/enable_charging bypass:/sys/class/power_supply/charge_data/enable_charger \
+            bypass:/sys/class/hw_power/charger/charge_data/enable_charger bypass:/sys/devices/platform/huawei_charger/enable_charger \
+            bypass:/sys/class/oplus_chg/battery/mmi_charging_enable bypass:/sys/devices/virtual/oplus_chg/battery/mmi_charging_enable \
+            bypass:/sys/devices/platform/soc/soc:oplus,chg_intf/oplus_chg/battery/mmi_charging_enable \
+            bypass:/sys/devices/platform/soc/soc:oplus,chg_intf/oplus_chg/battery/chg_enable \
+            bypass:/sys/devices/platform/soc/soc:google,charger/charge_disable bypass:/sys/kernel/nubia_charge/charger_bypass \
+            bypass:/sys/devices/platform/lge-unified-nodes/charging_enable bypass:/sys/devices/platform/charger/tran_aichg_disable_charger \
+            bypass:/sys/devices/platform/battery/CCIChargerSwitch bypass:/proc/smb1357_disable_chrg \
+            cut:/sys/class/asuslib/charging_suspend_en cut:/sys/kernel/debug/google_charger/input_suspend \
             cut:/sys/class/power_supply/battery/input_suspend \
             limit:/sys/class/power_supply/battery/constant_charge_current limit:/sys/class/power_supply/battery/fast_charge_current \
             limit:/sys/class/power_supply/battery/thermal_input_current limit:/sys/class/power_supply/battery/charge_control_limit \

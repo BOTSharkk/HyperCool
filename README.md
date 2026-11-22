@@ -97,7 +97,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Calmer CPU governor (WALT / schedutil), kernel touch boost off
 - Background apps on little cores, prime core parking (Qualcomm)
 - CPU keeper: puts the caps back when the ROM undoes them
-- UI blur off, cooler charging and ~80% charge limit (Xiaomi)
+- UI blur off and cooler charging
 - Heat guard (experimental): lower refresh rate and big-core limit while the battery is hot
 - Pause / bypass charging when hot, at a level or while gaming (charging switch, 0 mA current limit or charger input off; Qualcomm and MediaTek), battery temperature warning
 - Game battery mode: Android Game Mode with a 60 FPS cap and lower render resolution for games

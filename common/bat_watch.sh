@@ -60,6 +60,26 @@ bypass|$PS/battery_ext/smart_charging_interruption|0|1
 bypass|$PS/battery/mmi_charging_enable|1|0
 bypass|$PS/battery/op_disable_charge|0|1
 bypass|$HC_SYS/devices/platform/mt-battery/disable_charger|0|1
+bypass|$PS/ac/charging_enabled|1|0
+bypass|$PS/dc/charging_enabled|1|0
+bypass|$PS/battery/batt_slate_mode|0|1
+bypass|$PS/battery/stop_charge|0|1
+bypass|$PS/battery/device/Charging_Enable|1|0
+bypass|$PS/chargalg/disable_charging|0|1
+bypass|$PS/bq2589x_charger/enable_charging|1|0
+bypass|$PS/charge_data/enable_charger|1|0
+bypass|$HC_SYS/class/hw_power/charger/charge_data/enable_charger|1|0
+bypass|$HC_SYS/devices/platform/huawei_charger/enable_charger|1|0
+bypass|$HC_SYS/class/oplus_chg/battery/mmi_charging_enable|1|0
+bypass|$HC_SYS/devices/virtual/oplus_chg/battery/mmi_charging_enable|1|0
+bypass|$HC_SYS/devices/platform/soc/soc:oplus,chg_intf/oplus_chg/battery/mmi_charging_enable|1|0
+bypass|$HC_SYS/devices/platform/soc/soc:oplus,chg_intf/oplus_chg/battery/chg_enable|1|0
+bypass|$HC_SYS/devices/platform/soc/soc:google,charger/charge_disable|0|1
+bypass|$HC_SYS/kernel/nubia_charge/charger_bypass|0|1
+bypass|$HC_SYS/devices/platform/lge-unified-nodes/charging_enable|1|0
+bypass|$HC_SYS/devices/platform/charger/tran_aichg_disable_charger|0|1
+bypass|$HC_SYS/devices/platform/battery/CCIChargerSwitch|1|0
+bypass|$BP/smb1357_disable_chrg|0|1
 limit|$PS/battery/constant_charge_current|@|0
 limit|$PS/battery/fast_charge_current|@|0
 limit|$PS/battery/thermal_input_current|@|0
@@ -68,7 +88,9 @@ cut|$PS/battery/input_suspend|0|1
 cut|$HC_SYS/class/qcom-battery/input_suspend|0|1
 cut|$BP/mtk_battery_cmd/en_power_path|1|0
 cut|$PS/battery/battery_input_suspend|0|1
-cut|$HC_SYS/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:qcom,battery_charger/force_charger_suspend|0|1"
+cut|$HC_SYS/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:qcom,battery_charger/force_charger_suspend|0|1
+cut|$HC_SYS/class/asuslib/charging_suspend_en|0|1
+cut|$HC_SYS/kernel/debug/google_charger/input_suspend|0|1"
 GL=$(grep -E '^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+$' "$GAMEF" 2>/dev/null | tr '\n' ' ')
 [ -n "$GL" ] || GAME=0
 
@@ -199,6 +221,12 @@ pause_on() {
       if no_charge; then _hit=$((_hit + 1)); [ "$_hit" -ge 2 ] && { _okp=1; break; }; else _hit=0; fi
       sleep 2; _i=$((_i + 1))
     done
+    # a switch that left the battery discharging cut the charger input, whatever its name says;
+    # while gaming that is not wanted (the battery would run down on the charger)
+    if [ "$_okp" = 1 ] && [ "$(bstatus)" = Discharging ]; then
+      _ki="cut"
+      [ "${1:-0}" = 1 ] && _okp=0
+    fi
     if [ "$_okp" = 1 ]; then echo "ok|$_ki|$_n|$_nv|$_pv"; break; fi
     # the battery still charges: this switch does nothing on this phone
     wr "$_n" "$_nv"; rm -f "$SAVE"; echo "bad|$_n"
