@@ -106,6 +106,8 @@ set_perm "$MODPATH/common/cache_clean.sh" 0 0 0755
 set_perm "$MODPATH/common/cpu_watch.sh" 0 0 0755
 set_perm "$MODPATH/common/dexopt.sh" 0 0 0755
 set_perm "$MODPATH/common/hc_guard.sh" 0 0 0755
+set_perm "$MODPATH/common/bat_watch.sh" 0 0 0755
+set_perm "$MODPATH/common/leftover.sh" 0 0 0755
 
 ui_print " "
 ui_print "- Open the WebUI to choose features, then reboot."
