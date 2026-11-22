@@ -421,13 +421,36 @@ f_bus_cap() {
     [ "$_lock" = 1 ] && chmod 0444 "$2" 2>/dev/null && _lk=$((_lk + 1))
     _done="$_done${_done:+, }$1 $(( _to * 100 / _hi ))%"
   }
-  _gki=0
+  # bus_cap_voters <name> <bus_dcvs dir>: when the kernel refuses hw_max_freq, lower max_freq of the memlat / bwmon
+  # voters of that block to the same step (they only limit what the CPUs ask for; the block's own ceiling stays)
+  bus_cap_voters() {
+    _hb=$(hc_step_below "$2/available_frequencies" "$_bc") || return 1
+    _hi=${_hb% *}; _to=${_hb#* }; _vn=0
+    for _v in "$2"/*; do
+      [ -f "$_v/max_freq" ] && [ -f "$_v/min_freq" ] || continue
+      case "${_v##*/}" in *memlat*|*bwmon*) ;; *) continue ;; esac
+      _vm=$(rd "$_v/max_freq"); case "$_vm" in ''|*[!0-9]*) continue ;; esac
+      [ "$_to" -lt "$_vm" ] || continue
+      _mn=$(rd "$_v/min_freq"); case "$_mn" in ''|*[!0-9]*) _mn=0 ;; esac
+      [ "$_mn" -gt "$_to" ] && { log "  bus_cap: ${_v##*/} floor $_mn above $_to, left alone"; continue; }
+      wn "$_v/max_freq" "$_to" || continue
+      [ "$_lock" = 1 ] && chmod 0444 "$_v/max_freq" 2>/dev/null && _lk=$((_lk + 1))
+      _vn=$((_vn + 1))
+    done
+    [ "$_vn" -gt 0 ] && _done="$_done${_done:+, }$1 voters $(( _to * 100 / _hi ))% ($_vn)"
+    return 0
+  }
+  _gki=0; _brej=""
   for _c in DDR LLCC; do
     _p=/sys/devices/system/cpu/bus_dcvs/$_c
     [ -f "$_p/available_frequencies" ] && [ -e "$_p/hw_max_freq" ] || continue
     _gki=1
+    # some kernels refuse every write here (even the value already set): use the voters of that block instead
+    { echo "$(rd "$_p/hw_max_freq")" > "$_p/hw_max_freq"; } 2>/dev/null || { _brej="$_brej $_c"; continue; }
     bus_cap_set "$_c" "$_p/hw_max_freq" "$_p/available_frequencies" "$_p/hw_min_freq"
   done
+  for _c in $_brej; do bus_cap_voters "$_c" "/sys/devices/system/cpu/bus_dcvs/$_c"; done
+  [ -n "$_brej" ] && [ -z "$_done" ] && { st bus_cap skipped "the kernel refuses hw_max_freq and no memlat / bwmon voter could be lowered"; return; }
   if [ "$_gki" = 0 ]; then
     for _d in /sys/class/devfreq/*; do
       [ -f "$_d/available_frequencies" ] && [ -e "$_d/max_freq" ] || continue
@@ -1895,10 +1918,16 @@ hc_bat_stop() {
 hc_batp_nodes() {
   for _e in bypass:/sys/class/power_supply/battery/charging_enabled bypass:/sys/class/power_supply/battery/battery_charging_enabled \
             bypass:/sys/class/qcom-battery/battery_charging_enabled bypass:/sys/devices/platform/charger/bypass_charger \
-            bypass:/proc/mtk_battery_cmd/current_cmd cut:/sys/class/power_supply/battery/input_suspend \
+            bypass:/proc/mtk_battery_cmd/current_cmd bypass:/sys/class/qcom-battery/charging_enabled bypass:/sys/class/qcom-battery/night_charging \
+            bypass:/sys/class/power_supply/battery/charge_enabled bypass:/sys/class/power_supply/battery/charge_disable \
+            bypass:/sys/class/power_supply/battery_ext/smart_charging_interruption bypass:/sys/class/power_supply/battery/mmi_charging_enable \
+            bypass:/sys/class/power_supply/battery/op_disable_charge bypass:/sys/devices/platform/mt-battery/disable_charger \
+            cut:/sys/class/power_supply/battery/input_suspend \
             limit:/sys/class/power_supply/battery/constant_charge_current limit:/sys/class/power_supply/battery/fast_charge_current \
             limit:/sys/class/power_supply/battery/thermal_input_current limit:/sys/class/power_supply/battery/charge_control_limit \
-            cut:/sys/class/qcom-battery/input_suspend cut:/proc/mtk_battery_cmd/en_power_path; do
+            cut:/sys/class/qcom-battery/input_suspend cut:/proc/mtk_battery_cmd/en_power_path \
+            cut:/sys/class/power_supply/battery/battery_input_suspend \
+            cut:/sys/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:qcom,battery_charger/force_charger_suspend; do
     # bypass = a switch or a charge current limit (the charger keeps powering the phone)
     case "$1:${_e%%:*}" in auto:*|bypass:bypass|bypass:limit|cut:cut) ;; *) continue ;; esac
     [ -e "${_e#*:}" ] && printf '%s ' "${_e#*:}" | sed 's#^/sys/class/##; s#^/proc/##'

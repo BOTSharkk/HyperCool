@@ -52,13 +52,23 @@ bypass|$PS/battery/battery_charging_enabled|1|0
 bypass|$HC_SYS/class/qcom-battery/battery_charging_enabled|1|0
 bypass|$HC_SYS/devices/platform/charger/bypass_charger|0|1
 bypass|$BP/mtk_battery_cmd/current_cmd|0 0|0 1
+bypass|$HC_SYS/class/qcom-battery/charging_enabled|1|0
+bypass|$HC_SYS/class/qcom-battery/night_charging|0|1
+bypass|$PS/battery/charge_enabled|1|0
+bypass|$PS/battery/charge_disable|0|1
+bypass|$PS/battery_ext/smart_charging_interruption|0|1
+bypass|$PS/battery/mmi_charging_enable|1|0
+bypass|$PS/battery/op_disable_charge|0|1
+bypass|$HC_SYS/devices/platform/mt-battery/disable_charger|0|1
 limit|$PS/battery/constant_charge_current|@|0
 limit|$PS/battery/fast_charge_current|@|0
 limit|$PS/battery/thermal_input_current|@|0
 limit|$PS/battery/charge_control_limit|@|@max
 cut|$PS/battery/input_suspend|0|1
 cut|$HC_SYS/class/qcom-battery/input_suspend|0|1
-cut|$BP/mtk_battery_cmd/en_power_path|1|0"
+cut|$BP/mtk_battery_cmd/en_power_path|1|0
+cut|$PS/battery/battery_input_suspend|0|1
+cut|$HC_SYS/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:qcom,battery_charger/force_charger_suspend|0|1"
 GL=$(grep -E '^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+$' "$GAMEF" 2>/dev/null | tr '\n' ' ')
 [ -n "$GL" ] || GAME=0
 
@@ -155,6 +165,8 @@ PLOGGED=""; CUTWAIT=0; HT=0; HTS=0; HLV=0; HG=0; GNAME=""; NGAME=0
 # candidates in the order to try: the switch that worked before first. $1 = 1: no input cut
 cands() {
   _k=$(cut -d'|' -f2 "$NODEF" 2>/dev/null)
+  # auto: a remembered cut switch does not go ahead of the bypass ones (it is the last resort)
+  [ "$HOW" = auto ] && [ "$(cut -d'|' -f1 "$NODEF" 2>/dev/null)" = cut ] && _k=""
   { [ -n "$_k" ] && echo "$NODES" | grep -F "|$_k|"; echo "$NODES"; } | awk -F'|' -v h="$HOW" -v nc="${1:-0}" '
     !s[$2]++ && (h == "auto" || (h == "bypass" && $1 != "cut") || h == $1) && !(nc == 1 && $1 == "cut") { print }'
 }
