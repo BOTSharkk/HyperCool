@@ -321,11 +321,11 @@ drain_check() {
   [ "$(cfgv drain_alert_notify 1)" = 0 ] && return 0
   # the battery level is whole percent: 2% shown can be just over 1% lost, so the lower end is used
   awk -v d="$_dd" -v s="$_dsec" -v t="$(cfgv drain_alert_rate 1.5)" 'BEGIN { exit !(t + 0 > 0 && (d - 1) * 3600 / s >= t + 0) }' || return 0
-  _dmsg="Screen-off drain was ${_dr}%/h (${_dd}% in ${_dh} h)."
+  _dmsg="熄屏耗电为 ${_dr}%/小时（${_dh} 小时内耗电 ${_dd}%）。"
   if [ -n "$_dtp" ]; then
-    _dmsg="$_dmsg The app with the most wake lock time: $_dtp ($_dtm min)."
+    _dmsg="$_dmsg 唤醒锁时间最长的应用：$_dtp（$_dtm 分钟）。"
   else
-    _dmsg="$_dmsg Open HyperCool, Wake sources to see what kept the phone awake."
+    _dmsg="$_dmsg 打开 HyperCool 的“唤醒来源”查看是什么让手机保持唤醒。"
   fi
   dnotify "$_dmsg"
 }

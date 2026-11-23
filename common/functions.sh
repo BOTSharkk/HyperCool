@@ -1099,9 +1099,9 @@ on_qcom_ok() { [ "$HC_SOC" != mtk ]; }   # Qualcomm paths: skipped on MediaTek
 on_mtk_ok() { [ "$HC_SOC" != qcom ]; }   # MediaTek paths: skipped on Qualcomm
 hc_soc_label() {
   case "$(hc_soc_type)" in
-    qcom) echo "Device: Qualcomm✓ | MediaTek" ;;
-    mtk) echo "Device: Qualcomm | MediaTek✓" ;;
-    *) echo "Device: Qualcomm | MediaTek" ;;
+    qcom) echo "设备：Qualcomm✓ | MediaTek" ;;
+    mtk) echo "设备：Qualcomm | MediaTek✓" ;;
+    *) echo "设备：Qualcomm | MediaTek" ;;
   esac
 }
 
