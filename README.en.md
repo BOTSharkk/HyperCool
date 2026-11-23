@@ -106,7 +106,11 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - CPU keeper: keeps the big/little caps and the prime parking in place when the ROM undoes them
 - Disable UI blur
 - Heat guard (experimental): lowers the big-core cap and refresh rate while the battery is hot, then restores them after cool-down
-- Cooler charging (current limit) and charge limit ~80% (Xiaomi)
+- Battery temperature warning: a notification when the battery gets too hot (off by default)
+- Game battery mode: caps game FPS and render resolution to cut heat (off by default)
+- Pause / bypass charging: pauses charging when hot, at a chosen level or while gaming, and lets the charger power the phone (off by default)
+- Memory bus frequency cap (Qualcomm, off by default)
+- Cooler charging (current limit)
 
 **Battery drain (kernel)**
 - Adaptive screen-off power profile
@@ -118,12 +122,14 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - F2FS garbage collection with the screen off (Storage; frees space that only GC can give back; once a week at most, no charger needed; off by default)
 - Auto optimize apps (dex2oat) once a week with the screen off (Storage; speed-profile, no force recompile, result as a notification; off by default)
 - Top battery use (Home; read only: user apps, system apps, system services and hardware, from Android battery stats)
+- Battery history: 48 h of level, temperature and screen state for the Home chart (off by default)
 
 **Apps**
 - Keep important apps alive
 - Restrict other user apps
 - Block apps in background
 - Disable apps (pick with care)
+- Leftover app folders: finds and deletes Android/data and Android/obb folders of uninstalled apps
 
 **Battery drain (system)**
 - Cached app freezer, aggressive Doze, GMS Doze
@@ -138,6 +144,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - Stronger Battery Saver, auto saver level
 - Dim screen on Battery Saver, Smart Pixels (ROMs that have it)
 - Refresh rate cap, adaptive refresh rate (high on touch, low when idle), animation scale
+- Lower screen resolution: draws the whole system at 90/80/75% (off by default)
 
 **Extras**
 - Scheduler, network (including Faster TCP) and I/O tuning
@@ -147,7 +154,7 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - ZRAM size & compression (2-8 GB or custom up to 12 GB)
 - GMS ads/analytics freeze, more telemetry off
 - Log cleanup, vendor diagnostics off
-- Kernel power-saving switches, Energy Aware Scheduler
+- Kernel power-saving switches, Energy Aware Scheduler (including C-state aware)
 - Power saving for idle USB / I2C / SPI devices (opt-in)
 - Fewer background jobs: JobScheduler batches background work for 1-2 hours (Balanced / Strong, read back and put back if the ROM ignores it)
 - Compact background apps: compacts the memory of background apps after the screen has been off, only when free RAM is low
@@ -168,6 +175,8 @@ Everything is configured via WebUI and applied on the next boot. Only lightweigh
 - CPU use now: the busiest processes over a 2-second sample
 - Screen-off drain check: logs 30+ minute screen-off periods, notifies on high drain and names the wake-lock app (off by default)
 - Hibernate apps now: stop background apps manually, either Stop the app or Close background processes only
+- Battery history: 48 h of level, temperature and screen-on / screen-off drain, with CSV export
+- Leftover app folders: finds and deletes Android/data and Android/obb folders of uninstalled apps
 - Search: find any feature by name and jump to it
 - Idle drain: battery drop per hour with the screen off since the last unplug (shows after a 1% drop)
 - Battery check: health, capacity, cycle count, temperature and more
