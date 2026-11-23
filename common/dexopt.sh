@@ -242,24 +242,24 @@ _why=$(cat "$D/reason" 2>/dev/null)
 _min=$(( (END - START + 30) / 60 ))
 if [ "$_dn" -ge "$TOTAL" ]; then
   PHASE=done; wstate "$END" ""
-  if [ "$MODE" = reset ]; then _msg="Reset $_ok apps to default."; else _msg="Optimized $_ok apps."; fi
-  [ "$_fl" -gt 0 ] && _msg="$_msg $_fl failed."
-  _msg="$_msg ${_min} min."
+  if [ "$MODE" = reset ]; then _msg="已将 $_ok 个应用恢复默认。"; else _msg="已优化 $_ok 个应用。"; fi
+  [ "$_fl" -gt 0 ] && _msg="$_msg $_fl 个失败。"
+  _msg="$_msg 用时 ${_min} 分钟。"
 else
   PHASE=stopped; wstate "$END" "${_why:-stopped}"
   case "$_why" in
-    battery) _msg="Stopped: battery low or not readable. $_dn of $TOTAL apps done." ;;
-    storage) _msg="Stopped: storage almost full or not readable. $_dn of $TOTAL apps done." ;;
-    hot) _msg="Stopped: battery too warm or the temperature is not readable. $_dn of $TOTAL apps done." ;;
-    screen) _msg="Stopped: screen turned on. $_dn of $TOTAL apps done." ;;
-    *) _msg="Stopped. $_dn of $TOTAL apps done." ;;
+    battery) _msg="已停止：电量低或无法读取。已完成 $_dn/$TOTAL 个应用。" ;;
+    storage) _msg="已停止：存储空间不足或无法读取。已完成 $_dn/$TOTAL 个应用。" ;;
+    hot) _msg="已停止：电池温度过高或温度无法读取。已完成 $_dn/$TOTAL 个应用。" ;;
+    screen) _msg="已停止：屏幕亮起。已完成 $_dn/$TOTAL 个应用。" ;;
+    *) _msg="已停止。已完成 $_dn/$TOTAL 个应用。" ;;
   esac
 fi
-[ "$AUTO" = 1 ] && _msg="Auto optimize: $_msg"
+[ "$AUTO" = 1 ] && _msg="自动优化：$_msg"
 if [ -f "${MODDIR:-/data/adb/modules/hypercool}/common/klog.sh" ]; then
   HC_DATA=${HC_DATA:-/data/adb/hypercool} . "${MODDIR:-/data/adb/modules/hypercool}/common/klog.sh"
-  if [ "$AUTO" = 1 ]; then klog screen-off "App optimization (auto)" "${_msg#Auto optimize: }"
-  else klog tools "App optimization (manual)" "$_msg"; fi
+  if [ "$AUTO" = 1 ]; then klog screen-off "应用优化（自动）" "${_msg#Auto optimize: }"
+  else klog tools "应用优化（手动）" "$_msg"; fi
 fi
 notify "$_msg"
 exit 0

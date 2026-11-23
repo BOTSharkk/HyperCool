@@ -115,10 +115,10 @@ run_clean() {
   rm -f "$_b" "$_a" "$HC_DATA/cache_clean.skip"
   rmdir "$_lk" 2>/dev/null
   _kb=${_res%%\|*}; _ap=${_res#*\|}; _ap=${_ap%%\|*}
-  klog cache "App cache cleaned ($([ "$1" = force ] && echo manual || echo auto))" "$(awk -v k="${_kb:-0}" 'BEGIN { if (k >= 1024) printf "%.0f MB", k / 1024; else printf "%d KB", k }') from ${_ap:-0} apps"
+  klog cache "App cache cleaned ($([ "$1" = force ] && echo manual || echo auto))" "$(awk -v k="${_kb:-0}" 'BEGIN { if (k >= 1024) printf "%.0f MB", k / 1024; else printf "%d KB", k }')"
   # daily or manual clean: tell the user (Cache clean notification)
   if [ "$(cfgv x_cache_notify)" != 0 ]; then
-    notify "App cache cleaned: $(awk -v k="${_kb:-0}" 'BEGIN { if (k >= 1024) printf "%.0f MB", k / 1024; else printf "%d KB", k }') from ${_ap:-0} apps"
+    notify "应用缓存已清理：从 ${_ap:-0} 个应用清理 $(awk -v k="${_kb:-0}" 'BEGIN { if (k >= 1024) printf "%.0f MB", k / 1024; else printf "%d KB", k }')"
   fi
 }
 

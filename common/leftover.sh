@@ -64,7 +64,7 @@ case "$1" in
     rm -f "$LIST"
     if [ "$_n" -gt 0 ]; then
       _mb=$(awk -v k="$_k" 'BEGIN { printf "%.1f", k / 1024 }')
-      klog tools "Leftover app folders deleted" "$_n folder(s), $_mb MB: $_names$([ "$_n" -gt 5 ] && echo " +$((_n - 5)) more")$([ "$_f" -gt 0 ] && echo "; $_f failed")"
+      klog tools "已删除残留应用文件夹" "$_n 个文件夹，$_mb MB：$_names$([ "$_n" -gt 5 ] && echo " 等 $((_n - 5)) 个")$([ "$_f" -gt 0 ] && echo "；$_f 个失败")"
     fi
     echo "R|$_n|$_k|$_f" ;;
   *) echo "usage: leftover.sh scan|clean" ;;

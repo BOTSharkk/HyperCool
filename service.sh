@@ -247,16 +247,16 @@ if [ -f "$MODDIR/common/klog.sh" ]; then
 fi
 
 _hgst=$(sed -n 's/^heat_guard=//p' "$HC_STATUS" 2>/dev/null | tail -n 1)
-case "$_hgst" in applied*|partial*) _hgrun=", heat guard running" ;; *) _hgrun="" ;; esac
-_desc="Heat and battery fix for Android - $(hc_soc_label) (one-shot at boot${_hgrun}$(hc_bat_pid >/dev/null && echo ", battery keeper running")$({ on soff_prof || on wifi_keep || on x_compact || on soff_radio || on soff_data || on drain_alert || on hibernate || on f2fs_gc || on x_dexopt_auto; } && echo ", screen-off keeper running")). Last boot: $_a applied, $_p partial, $_s unsupported, $_f failed, $_o off. Configure in WebUI. Telegram Channel: @ModuleArchives."
+case "$_hgst" in applied*|partial*) _hgrun="，温度守护运行中" ;; *) _hgrun="" ;; esac
+_desc="HyperCool 温控与续航 - $(hc_soc_label)（开机一次性应用${_hgrun}$(hc_bat_pid >/dev/null && echo "，电池守护运行中")$({ on soff_prof || on wifi_keep || on x_compact || on soff_radio || on soff_data || on drain_alert || on hibernate || on f2fs_gc || on x_dexopt_auto; } && echo "，熄屏守护运行中")）。上次开机：$_a 项已应用，$_p 项部分应用，$_s 项不支持，$_f 项失败，$_o 项关闭。在 WebUI 中配置。Telegram 频道：@ModuleArchives。"
 sed -i "s#^description=.*#description=$_desc#" "$MODDIR/module.prop"
 
 # ---------- boot notification ----------
 if [ "$(cfg boot_notify 1)" = 1 ]; then
   if [ "$_f" -eq 0 ]; then
-    _nm="HyperCool applied successfully: $((_a + _p)) features active. Less heat, longer battery!"
+    _nm="HyperCool 已成功应用：$((_a + _p)) 项功能生效。更少发热，更长续航！"
   else
-    _nm="HyperCool applied: $((_a + _p)) features active, $_f failed. Open the WebUI for details."
+    _nm="HyperCool 已应用：$((_a + _p)) 项功能生效，$_f 项失败。打开 WebUI 查看详情。"
   fi
   hc_notify hc_boot "$_nm"
 fi

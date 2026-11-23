@@ -353,7 +353,7 @@ warn_tick() {
   [ "$WARN" = 1 ] && [ -n "$_t" ] || return 0
   if [ "$WARNED" = 0 ] && [ "$_t" -ge "$WT" ]; then
     WARNED=1; NWARN=$((NWARN + 1))
-    _wm="Battery at $(fmt "$_t")$(plugged && echo " while charging"). Let the phone cool down: stop gaming or charging for a while."
+    _wm="电池温度为 $(fmt "$_t")$(plugged && echo "（正在充电）")。请让手机降温：暂时停止游戏或充电。"
     su -lp 2000 -c "cmd notification post -S bigtext -t 'HyperCool' hc_temp '$_wm'" </dev/null >/dev/null 2>&1 ||
       cmd notification post -S bigtext -t HyperCool hc_temp "$_wm" </dev/null >/dev/null 2>&1
     klog battery "Battery hot" "$(fmt "$_t"), warning at $(fmt "$WT")"
