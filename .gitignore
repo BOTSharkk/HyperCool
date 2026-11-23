@@ -3,3 +3,7 @@
 
 __MACOSX/
 .DS_Store
+
+# Python build output
+__pycache__/
+*.pyc
