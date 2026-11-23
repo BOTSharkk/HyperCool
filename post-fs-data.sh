@@ -40,7 +40,7 @@ if [ "$_bt" -ge 3 ]; then
   _sd=$(date '+%Y-%m-%d %H:%M:%S')
   echo "$_sd" > "$HC_DATA/safe_mode"
   log "SAFE MODE: 3 boots in a row did not finish, HyperCool switched itself off ($_sd)"
-  sed -i "s#^description=.*#description=安全模式：HyperCool 连续 3 次开机未完成，已自动停用（$_sd）。在管理器中重新启用后即可使用。#" "$MODDIR/module.prop"
+  sed -i "s#^description=.*#description=SAFE MODE: HyperCool switched itself off after 3 boots that did not finish ($_sd). Turn it on again in the manager to use it.#" "$MODDIR/module.prop"
   exit 0
 fi
 

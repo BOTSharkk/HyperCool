@@ -40,17 +40,17 @@ gcf_post() {
 gcf_notify() {
   _gnb=$(awk -v m=$((_u0 / 256)) 'BEGIN { printf "%.1f", m / 1024 }')
   _gna=$(awk -v m=$((_u1 / 256)) 'BEGIN { printf "%.1f", m / 1024 }')
-  _gns=$((_te - _t0)); if [ "$_gns" -lt 90 ]; then _gnt="${_gns} 秒"; else _gnt="$(((_gns + 30) / 60)) 分钟"; fi
+  _gns=$((_te - _t0)); if [ "$_gns" -lt 90 ]; then _gnt="${_gns} s"; else _gnt="$(((_gns + 30) / 60)) min"; fi
   case "$1" in
-    done|timeout) _gnm="F2FS 清理完成：可回收空间从 ${_gnb} GB 变为 ${_gna} GB，用时 ${_gnt}"
-      [ "$2" = yes ] && _gnm="$_gnm，fstrim 完成" ;;
-    aborted:battery) _gnm="F2FS 清理已停止，电量低：可回收空间从 ${_gnb} GB 变为 ${_gna} GB" ;;
-    aborted:hot) _gnm="F2FS 清理已停止，电池温度过高：可回收空间从 ${_gnb} GB 变为 ${_gna} GB" ;;
-    aborted:screen-on) _gnm="F2FS 清理已停止，屏幕亮起：可回收空间从 ${_gnb} GB 变为 ${_gna} GB" ;;
-    failed:*) _gnm="F2FS 清理无法启动：此内核不接受 gc_urgent" ;;
+    done|timeout) _gnm="F2FS cleanup done: reclaimable space ${_gnb} GB to ${_gna} GB in ${_gnt}"
+      [ "$2" = yes ] && _gnm="$_gnm, fstrim done" ;;
+    aborted:battery) _gnm="F2FS cleanup stopped, battery low: reclaimable space ${_gnb} GB to ${_gna} GB" ;;
+    aborted:hot) _gnm="F2FS cleanup stopped, battery too warm: reclaimable space ${_gnb} GB to ${_gna} GB" ;;
+    aborted:screen-on) _gnm="F2FS cleanup stopped, screen turned on: reclaimable space ${_gnb} GB to ${_gna} GB" ;;
+    failed:*) _gnm="F2FS cleanup could not start: this kernel did not accept gc_urgent" ;;
     *) return 0 ;;
   esac
-  command -v klog >/dev/null 2>&1 && klog screen-off "F2FS 清理（自动）" "${_gnm#F2FS 清理 }"
+  command -v klog >/dev/null 2>&1 && klog screen-off "F2FS cleanup (auto)" "${_gnm#F2FS cleanup }"
   [ "$(sed -n 's/^f2fs_gc_notify=//p' "$GCD/config.conf" 2>/dev/null | tail -n 1 | tr -d '\r')" = 0 ] && return 0
   gcf_post "$_gnm"
 }
@@ -86,7 +86,7 @@ gcf_unusable() {
   case "$_gv" in ''|*[!0-9]*) return 1 ;; esac
   echo "$_gv"
 }
-# charging, or plugged in while the charge limit / night charging holds the battery ("Not charging")
+# charging, or plugged in while a charging pause holds the battery ("Not charging")
 gcf_chg() {
   case "$(cat "$HC_PS/battery/status" 2>/dev/null)" in Charging|Full) return 0 ;; esac
   for _go in usb ac wireless dc; do

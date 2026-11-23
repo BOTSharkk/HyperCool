@@ -224,7 +224,7 @@ lines() { _ln=$(grep -c . "$1" 2>/dev/null); echo "${_ln:-0}"; }
 # battery level and charging state, for the drain of each screen-off period
 BATP=/sys/class/power_supply/battery
 bat_lv() { _bl=$(cat "$BATP/capacity" 2>/dev/null); case "$_bl" in ''|*[!0-9]*) echo "" ;; *) echo "$_bl" ;; esac; }
-# on the charger counts too: with the 80% charge limit the status is "Not charging" while plugged in
+# on the charger counts too: while charging is paused the status is "Not charging" while plugged in
 bat_chg() {
   case "$(cat "$BATP/status" 2>/dev/null)" in Charging|Full) return 0 ;; esac
   for _bo in /sys/class/power_supply/usb/online /sys/class/power_supply/ac/online \
@@ -321,11 +321,11 @@ drain_check() {
   [ "$(cfgv drain_alert_notify 1)" = 0 ] && return 0
   # the battery level is whole percent: 2% shown can be just over 1% lost, so the lower end is used
   awk -v d="$_dd" -v s="$_dsec" -v t="$(cfgv drain_alert_rate 1.5)" 'BEGIN { exit !(t + 0 > 0 && (d - 1) * 3600 / s >= t + 0) }' || return 0
-  _dmsg="熄屏耗电为 ${_dr}%/小时（${_dh} 小时内耗电 ${_dd}%）。"
+  _dmsg="Screen-off drain was ${_dr}%/h (${_dd}% in ${_dh} h)."
   if [ -n "$_dtp" ]; then
-    _dmsg="$_dmsg 唤醒锁时间最长的应用：$_dtp（$_dtm 分钟）。"
+    _dmsg="$_dmsg The app with the most wake lock time: $_dtp ($_dtm min)."
   else
-    _dmsg="$_dmsg 打开 HyperCool 的“唤醒来源”查看是什么让手机保持唤醒。"
+    _dmsg="$_dmsg Open HyperCool, Wake sources to see what kept the phone awake."
   fi
   dnotify "$_dmsg"
 }

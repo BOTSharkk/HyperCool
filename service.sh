@@ -116,7 +116,7 @@ f_input_boost_off
 f_bg_cpuset
 f_blur_off_verify
 f_charge_cool
-f_charge_limit
+f_charge_limit_gone
 f_charge_hold_gone
 
 # ---------- kernel: drain ----------
@@ -156,6 +156,7 @@ f_smart_px
 f_rr_adapt
 f_refresh_rate
 f_anim_scale
+f_screen_res
 
 # ---------- more: merged extras (all off unless enabled in the WebUI) ----------
 f_x_sched
@@ -194,6 +195,8 @@ f_x_rpm
 f_x_cache_notify
 f_x_balanced
 f_x_kcommon
+# memory bus ceiling: after Balanced system defaults, which opens the full bus range
+f_bus_cap
 
 # ---------- battery calibration in progress: start its keeper again ----------
 if grep -qE '^phase=(discharge|charge|hold)$' "$HC_DATA/bcal.state" 2>/dev/null; then
@@ -206,6 +209,12 @@ f_soff_prof
 
 # ---------- heat guard keeper (experimental) ----------
 f_heat_guard
+
+# ---------- Game battery mode (Android Game Mode); its game list is also the one for bypass while gaming ----------
+f_game_mode
+
+# ---------- battery keeper: charging pause / bypass, battery history, temperature warning ----------
+f_bat_watch
 
 # ---------- bookkeeping ----------
 cp -f "$HC_BOOTCFG" "$HC_DATA/last_applied.conf"
@@ -238,16 +247,16 @@ if [ -f "$MODDIR/common/klog.sh" ]; then
 fi
 
 _hgst=$(sed -n 's/^heat_guard=//p' "$HC_STATUS" 2>/dev/null | tail -n 1)
-case "$_hgst" in applied*|partial*) _hgrun="，温度守护运行中" ;; *) _hgrun="" ;; esac
-_desc="HyperCool 温控与续航 - $(hc_soc_label)（开机一次性应用$(on charge_limit && echo "，充电上限守护运行中")${_hgrun}$({ on soff_prof || on wifi_keep || on x_compact || on soff_radio || on soff_data || on drain_alert || on hibernate || on f2fs_gc || on x_dexopt_auto; } && echo "，熄屏守护运行中")）。上次开机：$_a 项已应用，$_p 项部分应用，$_s 项不支持，$_f 项失败，$_o 项关闭。在 WebUI 中配置。Telegram 频道：@ModuleArchives。"
+case "$_hgst" in applied*|partial*) _hgrun=", heat guard running" ;; *) _hgrun="" ;; esac
+_desc="Heat and battery fix for Android - $(hc_soc_label) (one-shot at boot${_hgrun}$(hc_bat_pid >/dev/null && echo ", battery keeper running")$({ on soff_prof || on wifi_keep || on x_compact || on soff_radio || on soff_data || on drain_alert || on hibernate || on f2fs_gc || on x_dexopt_auto; } && echo ", screen-off keeper running")). Last boot: $_a applied, $_p partial, $_s unsupported, $_f failed, $_o off. Configure in WebUI. Telegram Channel: @ModuleArchives."
 sed -i "s#^description=.*#description=$_desc#" "$MODDIR/module.prop"
 
 # ---------- boot notification ----------
 if [ "$(cfg boot_notify 1)" = 1 ]; then
   if [ "$_f" -eq 0 ]; then
-    _nm="HyperCool 已成功应用：$((_a + _p)) 项功能生效。更少发热，更长续航！"
+    _nm="HyperCool applied successfully: $((_a + _p)) features active. Less heat, longer battery!"
   else
-    _nm="HyperCool 已应用：$((_a + _p)) 项功能生效，$_f 项失败。打开 WebUI 查看详情。"
+    _nm="HyperCool applied: $((_a + _p)) features active, $_f failed. Open the WebUI for details."
   fi
   hc_notify hc_boot "$_nm"
 fi

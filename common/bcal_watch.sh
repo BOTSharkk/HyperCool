@@ -4,8 +4,8 @@
 # HyperCool - battery calibration keeper (only runs during a calibration started from the WebUI)
 # One full cycle lets the fuel gauge learn the real capacity: use the phone down to 5%, charge to
 # 100% without unplugging, keep it plugged in until charging really ends (status Full + 5 min,
-# at most 1 h after 100%). Checks once a minute, no wakelock; the charge
-# limit keeper pauses itself while a calibration is running. State: phase=discharge|charge|hold|done
+# at most 1 h after 100%). Checks once a minute, no wakelock; Pause / bypass
+# charging pauses itself while a calibration is running. State: phase=discharge|charge|hold|done
 export PATH=/system/bin:/system/xbin:/vendor/bin:/data/adb/ksu/bin:/data/adb/ap/bin:/data/adb/magisk:"$PATH"
 HC_DATA=/data/adb/hypercool
 MODDIR=/data/adb/modules/hypercool
@@ -27,7 +27,7 @@ setk() {
   { grep -v "^$1=" "$S" 2>/dev/null; echo "$1=$2"; } > "$S.t" && mv -f "$S.t" "$S"
 }
 notify() {
-  case "$1" in *': '*) klog calibration "${1%%: *}" "${1#*: }" ;; *) klog calibration "电池校准" "$1" ;; esac
+  case "$1" in *': '*) klog calibration "${1%%: *}" "${1#*: }" ;; *) klog calibration "Battery calibration" "$1" ;; esac
   su -lp 2000 -c "cmd notification post -S bigtext -t 'HyperCool' hc_bcal '$1'" </dev/null >/dev/null 2>&1 ||
     cmd notification post -S bigtext -t HyperCool hc_bcal "$1" </dev/null >/dev/null 2>&1
 }
@@ -50,7 +50,7 @@ while :; do
     discharge)
       if [ "$_l" -le "$LOW" ]; then
         setk phase charge
-        plugged || notify "电池校准：电量 ${_l}%。请现在插上充电器，并一直充到 100%，中途不要拔掉。"
+        plugged || notify "Battery calibration: battery at ${_l}%. Plug in the charger now and charge to 100% without unplugging."
       fi ;;
     charge)
       if plugged; then
@@ -58,12 +58,12 @@ while :; do
         [ "$(get warned)" = 1 ] && setk warned 0
         if [ "$(cat "$B/status" 2>/dev/null)" = Full ] || [ "$_l" -ge 100 ]; then
           setk phase hold; setk full "$_now"
-          notify "电池校准：电量 100%。请保持充电器连接直到充电完成（最多 1 小时），完成后 HyperCool 会通知你。"
+          notify "Battery calibration: battery at 100%. Keep the charger plugged in until charging finishes (at most 1 h), HyperCool tells you when."
         fi
       elif [ "$(get seen)" = 1 ] && [ "$(get warned)" != 1 ]; then
         # unplugged after charging had started (before that, it is still waiting for the charger)
         setk warned 1; setk breaks $(( $(get breaks) + 1 ))
-        notify "电池校准：充电在 ${_l}% 中断。请重新插上充电器，并一直充到 100%，中途不要拔掉。"
+        notify "Battery calibration: charging stopped at ${_l}%. Plug the charger back in and charge to 100% without unplugging."
       fi ;;
     hold)
       _f=$(get full); case "$_f" in ''|*[!0-9]*) _f=$_now ;; esac
@@ -73,7 +73,7 @@ while :; do
       if ! plugged || [ $((_now - _f)) -ge "$HOLD" ] || { [ -n "$_e" ] && [ $((_now - _e)) -ge "$SETTLE" ]; }; then
         plugged || setk early 1
         setk cap1 "$(capnow)"; setk end "$_now"; setk phase "done"
-        notify "电池校准完成，现在可以拔掉充电器了。"
+        notify "Battery calibration done. You can unplug the charger now."
         break
       fi ;;
     *) break ;;
